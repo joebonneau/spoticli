@@ -142,6 +142,17 @@ doc = ["Sphinx (>=1.5.2)"]
 test = ["mock (==2.0.0)"]
 
 [[package]]
+name = "tabulate"
+version = "0.8.9"
+description = "Pretty-print tabular data"
+category = "main"
+optional = false
+python-versions = "*"
+
+[package.extras]
+widechars = ["wcwidth"]
+
+[[package]]
 name = "tomli"
 version = "1.2.0"
 description = "A lil' TOML parser"
@@ -165,7 +176,7 @@ socks = ["PySocks (>=1.5.6,!=1.5.7,<2.0)"]
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.9"
-content-hash = "5fa8e179fc1dab1d7a5ba8980b14f9b1521915c9d29b6feeb2bb16050d11b5a5"
+content-hash = "9f6d99067df6378adcf9dff0cec54d456f974b2fa4205389dfd9d230e5e420ad"
 
 [metadata.files]
 appdirs = [
@@ -250,6 +261,10 @@ six = [
 spotipy = [
     {file = "spotipy-2.18.0-py3-none-any.whl", hash = "sha256:8acbc18dd44e1c22b3da500ca9225c5d2f7476f2e68d5d56a317b0b8c87ec8a5"},
     {file = "spotipy-2.18.0.tar.gz", hash = "sha256:f7293b808696807e9acec6bdcff63f7dcc3cc1b148c0c4b4299ef43c966f7177"},
+]
+tabulate = [
+    {file = "tabulate-0.8.9-py3-none-any.whl", hash = "sha256:d7c013fe7abbc5e491394e10fa845f8f32fe54f8dc60c6622c6cf482d25d47e4"},
+    {file = "tabulate-0.8.9.tar.gz", hash = "sha256:eb1d13f25760052e8931f2ef80aaf6045a6cceb47514db8beab24cded16f13a7"},
 ]
 tomli = [
     {file = "tomli-1.2.0-py3-none-any.whl", hash = "sha256:056f0376bf5a6b182c513f9582c1e5b0487265eb6c48842b69aa9ca1cd5f640a"},
