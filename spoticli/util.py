@@ -2,7 +2,6 @@ from typing import Iterable
 import os
 
 import spotipy as sp
-from spotipy.oauth2 import SpotifyOAuth
 import click
 from click.termui import style
 
@@ -13,33 +12,7 @@ SPOTIFY_REDIRECT_URI = os.environ.get("SPOTIFY_REDIRECT_URI")
 USER_READ_PLAYBACK_STATE = "user-read-playback-state"
 
 
-def connect(
-    scope: str,
-    client_id: str = SPOTIFY_CLIENT_ID,
-    client_secret: str = SPOTIFY_CLIENT_SECRET,
-    redirect_uri: str = SPOTIFY_REDIRECT_URI,
-) -> sp.Spotify:
-    try:
-        auth = sp.Spotify(
-            auth_manager=SpotifyOAuth(
-                scope=scope,
-                client_id=client_id,
-                client_secret=client_secret,
-                redirect_uri=redirect_uri,
-            )
-        )
-
-        return auth
-    except:
-        click.secho(
-            "API authorization failed! Did you remember to set the environment variables?",
-            fg="red",
-        )
-
-
-def get_current_playback(display: bool) -> dict:
-
-    sp_auth = connect(scope=USER_READ_PLAYBACK_STATE)
+def get_current_playback(sp_auth: sp.Spotify, display: bool) -> dict:
 
     current_playback = sp_auth.current_playback()
     playback = {}
