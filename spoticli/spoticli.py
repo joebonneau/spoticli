@@ -71,16 +71,17 @@ def play_random_saved_album(ctx):
     while True:
         albums_res = sp_auth.current_user_saved_albums(limit=50, offset=offset)
         albums = albums_res["items"]
-        for i in range(len(albums)):
+        for _, album in enumerate(albums):
             artists = []
-            for j in range(len(albums_res["items"][i]["album"]["artists"])):
-                artists.append(albums_res["items"][i]["album"]["artists"][j]["name"])
+            artists_res = album["album"]["artists"]
+            for _, artist in enumerate(artists_res):
+                artists.append(artist["name"])
 
             saved_albums.append(
                 {
-                    "album_uri": albums_res["items"][i]["album"]["uri"],
+                    "album_uri": album["album"]["uri"],
                     "artists": ", ".join(artists),
-                    "album": albums_res["items"][i]["album"]["name"],
+                    "album": album["album"]["name"],
                 }
             )
         if len(albums) < 50:
@@ -92,8 +93,8 @@ def play_random_saved_album(ctx):
     rand_i = random.randint(0, len(saved_albums))
 
     while True:
-        album = saved_albums[rand_i].get("album")
-        artists = saved_albums[rand_i].get("artists")
+        album = saved_albums[rand_i]["album"]
+        artists = saved_albums[rand_i]["artists"]
         click.echo(
             f"Selected album: {style(album, fg='blue')} by {style(artists, fg='green')}."
         )
@@ -116,7 +117,7 @@ def play_random_saved_album(ctx):
             )
             tracks = tracks_res["items"]
             for i in range(len(tracks)):
-                sp_auth.add_to_queue(tracks_res["items"][i]["uri"])
+                sp_auth.add_to_queue(tracks[i]["uri"])
             break
         else:
             sp_auth.start_playback(context_uri=saved_albums[rand_i]["album_uri"])
@@ -136,10 +137,11 @@ def add_current_track_to_playlists(ctx):
         positions = []
         playlist_names = []
         playlist_ids = []
-        for i in range(len(playlist_res["items"])):
+        playlist_items = playlist_res["items"]
+        for i in range(len(playlist_items)):
             positions.append(i)
-            playlist_names.append(playlist_res["items"][i]["name"])
-            playlist_ids.append(playlist_res["items"][i]["uri"])
+            playlist_names.append(playlist_items[i]["name"])
+            playlist_ids.append(playlist_items[i]["uri"])
 
         playlist_dict = {
             "index": positions,
@@ -170,10 +172,10 @@ def add_current_track_to_playlists(ctx):
                 break
             except ValueError:
                 click.secho(f"Invalid input! Try again.", fg="red")
-            # except:
-            #     click.secho(
-            #         f"There was an issue adding the track to all specified playlists."
-            #     )
+            except:
+                click.secho(
+                    f"There was an issue adding the track to all specified playlists."
+                )
     except TypeError:
         click.secho("Nothing is currently playing!", fg="red")
 
@@ -206,6 +208,7 @@ def pause_playback(ctx):
 
 
 @main.command("play")
+@click.pass_obj
 def start_playback(ctx):
     sp_auth = ctx
     sp_auth.start_playback()
@@ -221,12 +224,11 @@ def volume(ctx, up):
 
     sp_auth = ctx
     playback_info = get_current_playback(sp_auth=sp_auth, display=False)
+    previous_volume = playback_info["volume"]
 
     if up:
-        previous_volume = playback_info["volume"]
         new_volume = int(round(previous_volume + 10, 0))
     else:
-        previous_volume = playback_info["volume"]
         new_volume = int(round(previous_volume - 10, 0))
 
     if new_volume > 100:
@@ -234,7 +236,8 @@ def volume(ctx, up):
     elif new_volume < 0:
         new_volume = 0
 
-    sp_auth.volume(new_volume)
+    if not previous_volume == 100:
+        sp_auth.volume(new_volume)
 
     click.secho(f"Current volume: {new_volume}")
 
@@ -277,7 +280,106 @@ def recently_played(ctx):
     sp_auth = ctx
     recent_playback = sp_auth.current_user_recently_played(limit=25)
 
-    # click.echo(f"{pprint(recent_playback['items'][0]['track'])}")
+    positions = []
+    track_names = []
+    track_uris = []
+    album_names = []
+    album_uris = []
+    album_types = []
+    timestamps = []
+    playback_items = recent_playback["items"]
+    for i, item in enumerate(playback_items):
+        positions.append(i)
+        track_names.append(item["track"]["name"])
+        track_uris.append(item["track"]["uri"])
+        album_names.append(item["track"]["album"]["name"])
+        album_uris.append(item["track"]["album"]["uri"])
+        album_types.append(item["track"]["album"]["album_type"])
+        timestamps.append(item["played_at"])
+
+    recent_dict = {
+        "index": positions,
+        "track_name": track_names,
+        "track_uri": track_uris,
+        "album_name": album_names,
+        "album_uri": album_uris,
+        "album_type": album_types,
+        "timestamp": timestamps,
+    }
+    display_dict = dict(
+        (k, recent_dict[k])
+        for k in ("index", "track_name", "album_type", "album_name", "timestamp")
+    )
+    click.echo(tabulate(display_dict, headers="keys", tablefmt="github"))
+
+    while True:
+        action = click.prompt("Take further action? (y/n)")
+        if action.lower() in ("y", "n"):
+            if action.lower() == "y":
+                while True:
+                    index = click.prompt("Enter the index of the track/album")
+                    try:
+                        index = int(index)
+                        if index in range(len(positions)):
+                            while True:
+                                item_type = click.prompt(
+                                    "Track or associated album? (t/a)"
+                                )
+                                if item_type.lower() in ("t", "a"):
+                                    while True:
+                                        action_type = click.prompt(
+                                            "Add to queue or play now? (q/p)"
+                                        )
+                                        if action_type.lower() in ("q", "p"):
+                                            break
+                                        else:
+                                            click.secho(
+                                                style(
+                                                    f"{action_type} is not a valid input!",
+                                                    fg="red",
+                                                )
+                                            )
+                                    break
+                                else:
+                                    click.secho(
+                                        style(
+                                            f"{item_type} is not a valid input!",
+                                            fg="red",
+                                        )
+                                    )
+                        else:
+                            click.secho(
+                                style(f"{index} is not a valid input!", fg="red")
+                            )
+                    except:
+                        click.secho(style(f"{index} is not a valid input!", fg="red"))
+
+                    if action_type.lower() == "q":
+                        if item_type == "t":
+                            sp_auth.add_to_queue(recent_dict["track_uri"][i])
+                        else:
+                            tracks_res = sp_auth.album_tracks(
+                                recent_dict["album_uri"][index], limit=50
+                            )
+                            tracks = tracks_res["items"]
+                            for track in tracks:
+                                sp_auth.add_to_queue(track[index]["uri"])
+                            break
+                    else:
+                        if item_type == "t":
+                            sp_auth.start_playback(
+                                uris=[recent_dict["track_uri"][index]]
+                            )
+                            break
+                        else:
+                            sp_auth.start_playback(
+                                context_uri=recent_dict["album_uri"][index]
+                            )
+                        break
+            else:
+                break
+        else:
+            click.secho(style(f"{action} is not a valid input!", fg="red"))
 
 
 # TODO: recently_played, smart searching

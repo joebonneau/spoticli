@@ -15,20 +15,21 @@ USER_READ_PLAYBACK_STATE = "user-read-playback-state"
 def get_current_playback(sp_auth: sp.Spotify, display: bool) -> dict:
 
     current_playback = sp_auth.current_playback()
+    playback_items = current_playback["item"]
     playback = {}
 
     artists = []
-    for i in range(len(current_playback["item"]["artists"])):
-        artists.append(current_playback["item"]["artists"][i]["name"])
+    for _, artist in enumerate(playback_items["artists"]):
+        artists.append(artist["name"])
     artists_str = ", ".join(artists)
 
     playback["artists"] = artists_str
-    playback["track_name"] = current_playback["item"]["name"]
-    playback["track_uri"] = current_playback["item"]["uri"]
-    playback["album_name"] = current_playback["item"]["album"]["name"]
-    playback["album_uri"] = current_playback["item"]["album"]["uri"]
-    playback["release_date"] = current_playback["item"]["album"]["release_date"]
-    playback["duration"] = convert_duration(current_playback["item"]["duration_ms"])
+    playback["track_name"] = playback_items["name"]
+    playback["track_uri"] = playback_items["uri"]
+    playback["album_name"] = playback_items["album"]["name"]
+    playback["album_uri"] = playback_items["album"]["uri"]
+    playback["release_date"] = playback_items["album"]["release_date"]
+    playback["duration"] = convert_duration(playback_items["duration_ms"])
     playback["volume"] = current_playback["device"]["volume_percent"]
     playback["shuffle_state"] = current_playback["shuffle_state"]
 
@@ -50,6 +51,11 @@ def get_current_playback(sp_auth: sp.Spotify, display: bool) -> dict:
 def convert_duration(duration_ms: int) -> str:
 
     minutes, seconds = divmod(duration_ms / 1000, 60)
-    duration = f"{int(minutes)}:{int(round(seconds,0))}"
+    rounded_seconds = int(round(seconds, 0))
+
+    if rounded_seconds - 10 <= 0:
+        rounded_seconds = "0" + str(rounded_seconds)
+
+    duration = f"{int(minutes)}:{rounded_seconds}"
 
     return duration
