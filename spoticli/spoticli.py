@@ -58,128 +58,6 @@ def main(
         )
 
 
-@main.command("prsa")
-@click.pass_obj
-def play_random_saved_album(ctx):
-
-    # Only 50 albums can be retrieved at a time, so make as many requests as necessary to retrieve
-    # all in library.
-    sp_auth = ctx
-    click.secho("This might take a few seconds...", fg="yellow")
-    saved_albums = []
-    offset = 0
-    while True:
-        albums_res = sp_auth.current_user_saved_albums(limit=50, offset=offset)
-        albums = albums_res["items"]
-        for _, album in enumerate(albums):
-            artists = []
-            artists_res = album["album"]["artists"]
-            for _, artist in enumerate(artists_res):
-                artists.append(artist["name"])
-
-            saved_albums.append(
-                {
-                    "album_uri": album["album"]["uri"],
-                    "artists": ", ".join(artists),
-                    "album": album["album"]["name"],
-                }
-            )
-        if len(albums) < 50:
-            break
-        else:
-            offset += 50
-
-    # Pick a random index that corresponds to an album URI
-    rand_i = random.randint(0, len(saved_albums))
-
-    while True:
-        album = saved_albums[rand_i]["album"]
-        artists = saved_albums[rand_i]["artists"]
-        click.echo(
-            f"Selected album: {style(album, fg='blue')} by {style(artists, fg='green')}."
-        )
-        new_album = click.prompt("Select a different random album? (y/n)")
-        if new_album.lower() not in ["y", "n"]:
-            click.secho("Invalid input!", fg="red")
-        elif new_album.lower() == "y":
-            # Pick a random index that corresponds to an album URI
-            rand_i = random.randint(0, len(saved_albums))
-        elif new_album.lower() == "n":
-            break
-
-    while True:
-        queue = click.prompt("Play album now (p) or add to queue (q)?")
-        if queue.lower() not in ["p", "q"]:
-            click.secho("Invalid input!", fg="red")
-        elif queue.lower() == "q":
-            tracks_res = sp_auth.album_tracks(
-                saved_albums[rand_i]["album_uri"], limit=50
-            )
-            tracks = tracks_res["items"]
-            for i in range(len(tracks)):
-                sp_auth.add_to_queue(tracks[i]["uri"])
-            break
-        else:
-            sp_auth.start_playback(context_uri=saved_albums[rand_i]["album_uri"])
-            break
-
-
-@main.command("actp")
-@click.pass_obj
-def add_current_track_to_playlists(ctx):
-
-    sp_auth = ctx
-
-    try:
-        playback = get_current_playback(display=True)
-
-        playlist_res = sp_auth.current_user_playlists(limit=20)
-        positions = []
-        playlist_names = []
-        playlist_ids = []
-        playlist_items = playlist_res["items"]
-        for i in range(len(playlist_items)):
-            positions.append(i)
-            playlist_names.append(playlist_items[i]["name"])
-            playlist_ids.append(playlist_items[i]["uri"])
-
-        playlist_dict = {
-            "index": positions,
-            "playlist_names": playlist_names,
-            "playlist_ids": playlist_ids,
-        }
-        display_dict = {"index": positions, "playlist_names": playlist_names}
-        click.echo(tabulate(display_dict, headers="keys", tablefmt="github"))
-
-        while True:
-            indices = click.prompt(
-                "Enter the indices of the playlists to add the track to separated by commas."
-            )
-
-            try:
-                indices_int = list(map(int, indices.split(",")))
-
-                for index in indices_int:
-                    sp_auth.user_playlist_add_tracks(
-                        user=SPOTIFY_USER_ID,
-                        playlist_id=playlist_dict["playlist_ids"][index],
-                        tracks=[playback["track_uri"]],
-                    )
-
-                click.secho(
-                    f"The track was successfully added to all specified playlists!"
-                )
-                break
-            except ValueError:
-                click.secho(f"Invalid input! Try again.", fg="red")
-            except:
-                click.secho(
-                    f"There was an issue adding the track to all specified playlists."
-                )
-    except TypeError:
-        click.secho("Nothing is currently playing!", fg="red")
-
-
 @main.command("prev")
 @click.pass_obj
 def previous_track(ctx):
@@ -215,6 +93,34 @@ def start_playback(ctx):
 
     click.secho("Playback resumed.")
     get_current_playback(sp_auth=sp_auth, display=True)
+
+
+@main.command("cp")
+@click.option("-pub/-pri", "--public/--private", default=True)
+@click.option("-c/-i", "--collaborative/--individual", default=False)
+@click.option("-d", "--description", type=str, default="")
+@click.argument("name", nargs=-1, required=True)
+@click.pass_obj
+def create_playlist(ctx, public, collaborative, description, name):
+
+    sp_auth = ctx
+
+    concat_name = " ".join(name)
+
+    if public == True and collaborative == True:
+        click.secho(style("Collaborative playlists can only be private.", fg="red"))
+    else:
+        sp_auth.user_playlist_create(
+            user=SPOTIFY_USER_ID,
+            name=concat_name,
+            public=public,
+            collaborative=collaborative,
+            description=description,
+        )
+
+        click.secho(
+            style(f"Playlist '{concat_name}' created successfully!", fg="green")
+        )
 
 
 @main.command("vol")
@@ -271,6 +177,128 @@ def toggle_shuffle(ctx, on):
     else:
         sp_auth.shuffle(state=False)
         click.echo(f"Shuffle toggled {style('off', fg='red')}.")
+
+
+@main.command("prsa")
+@click.pass_obj
+def play_random_saved_album(ctx):
+
+    # Only 50 albums can be retrieved at a time, so make as many requests as necessary to retrieve
+    # all in library.
+    sp_auth = ctx
+    click.secho("This might take a few seconds...", fg="yellow")
+    saved_albums = []
+    offset = 0
+    while True:
+        albums_res = sp_auth.current_user_saved_albums(limit=50, offset=offset)
+        albums = albums_res["items"]
+        for album in albums:
+            artists = []
+            artists_res = album["album"]["artists"]
+            for artist in artists_res:
+                artists.append(artist["name"])
+
+            saved_albums.append(
+                {
+                    "album_uri": album["album"]["uri"],
+                    "artists": ", ".join(artists),
+                    "album": album["album"]["name"],
+                }
+            )
+        if len(albums) < 50:
+            break
+        else:
+            offset += 50
+
+    # Pick a random index that corresponds to an album URI
+    rand_i = random.randint(0, len(saved_albums))
+
+    while True:
+        album = saved_albums[rand_i]["album"]
+        artists = saved_albums[rand_i]["artists"]
+        click.echo(
+            f"Selected album: {style(album, fg='blue')} by {style(artists, fg='green')}."
+        )
+        new_album = click.prompt("Select a different random album? (y/n)")
+        if new_album.lower() not in ["y", "n"]:
+            click.secho("Invalid input!", fg="red")
+        elif new_album.lower() == "y":
+            # Pick a random index that corresponds to an album URI
+            rand_i = random.randint(0, len(saved_albums))
+        elif new_album.lower() == "n":
+            break
+
+    while True:
+        queue = click.prompt("Play album now (p) or add to queue (q)?")
+        if queue.lower() not in ["p", "q"]:
+            click.secho("Invalid input!", fg="red")
+        elif queue.lower() == "q":
+            tracks_res = sp_auth.album_tracks(
+                saved_albums[rand_i]["album_uri"], limit=50
+            )
+            tracks = tracks_res["items"]
+            for track in tracks:
+                sp_auth.add_to_queue(track["uri"])
+            break
+        else:
+            sp_auth.start_playback(context_uri=saved_albums[rand_i]["album_uri"])
+            break
+
+
+@main.command("actp")
+@click.pass_obj
+def add_current_track_to_playlists(ctx):
+
+    sp_auth = ctx
+
+    try:
+        playback = get_current_playback(sp_auth=sp_auth, display=True)
+
+        playlist_res = sp_auth.current_user_playlists(limit=20)
+        positions = []
+        playlist_names = []
+        playlist_ids = []
+        playlist_items = playlist_res["items"]
+        for i, item in enumerate(playlist_items):
+            positions.append(i)
+            playlist_names.append(item["name"])
+            playlist_ids.append(item["uri"])
+
+        playlist_dict = {
+            "index": positions,
+            "playlist_names": playlist_names,
+            "playlist_ids": playlist_ids,
+        }
+        display_dict = {"index": positions, "playlist_names": playlist_names}
+        click.echo(tabulate(display_dict, headers="keys", tablefmt="github"))
+
+        while True:
+            indices = click.prompt(
+                "Enter the indices of the playlists to add the track to separated by commas."
+            )
+
+            try:
+                indices_int = list(map(int, indices.split(",")))
+
+                for index in indices_int:
+                    sp_auth.user_playlist_add_tracks(
+                        user=SPOTIFY_USER_ID,
+                        playlist_id=playlist_dict["playlist_ids"][index],
+                        tracks=[playback["track_uri"]],
+                    )
+
+                click.secho(
+                    f"The track was successfully added to all specified playlists!"
+                )
+                break
+            except ValueError:
+                click.secho(f"Invalid input! Try again.", fg="red")
+            except:
+                click.secho(
+                    f"There was an issue adding the track to all specified playlists."
+                )
+    except TypeError:
+        click.secho("Nothing is currently playing!", fg="red")
 
 
 @main.command("rp")
