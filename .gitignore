@@ -8,6 +8,7 @@ __pycache__/
 
 # IDE
 .vscode
+*.ipynb
 
 # Distribution / packaging
 .Python
