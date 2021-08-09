@@ -2,42 +2,69 @@ import random
 import os
 
 import spotipy as sp
+from spotipy.oauth2 import SpotifyOAuth
 import click
 from click.termui import style
 from tabulate import tabulate
+from pprint import pprint
 
-from spoticli.util import convert_duration, connect, get_current_playback
+from spoticli.util import convert_duration, get_current_playback
 
 
 SPOTIFY_USER_ID = os.environ.get("SPOTIFY_USER_ID")
-
-USER_MODIFY_PLAYBACK_STATE = "user-modify-playback-state"
+SPOTIFY_CLIENT_ID = os.environ.get("SPOTIFY_CLIENT_ID")
+SPOTIFY_CLIENT_SECRET = os.environ.get("SPOTIFY_CLIENT_SECRET")
+SPOTIFY_REDIRECT_URI = os.environ.get("SPOTIFY_REDIRECT_URI")
 
 states = [
     "user-modify-playback-state",
+    "user-read-playback-state",
     "user-library-read",
     "playlist-read-private",
     "playlist-read-collaborative",
     "playlist-modify-public",
     "playlist-modify-private",
+    "user-read-recently-played",
 ]
 
 STATE_STR = " ".join(states)
 
 
 @click.group()
-def main():
-    pass
-    # TODO: Figure out how to check whether a valid token exists and connect if not
+@click.pass_context
+def main(
+    ctx,
+    scope: str = STATE_STR,
+    client_id: str = SPOTIFY_CLIENT_ID,
+    client_secret: str = SPOTIFY_CLIENT_SECRET,
+    redirect_uri: str = SPOTIFY_REDIRECT_URI,
+):
+
+    try:
+        auth = sp.Spotify(
+            auth_manager=SpotifyOAuth(
+                scope=scope,
+                client_id=client_id,
+                client_secret=client_secret,
+                redirect_uri=redirect_uri,
+            )
+        )
+
+        ctx.obj = auth
+    except:
+        click.secho(
+            "API authorization failed! Did you remember to set the environment variables?",
+            fg="red",
+        )
 
 
-@main.command()
-def play_random_saved_album():
+@main.command("prsa")
+@click.pass_obj
+def play_random_saved_album(ctx):
 
     # Only 50 albums can be retrieved at a time, so make as many requests as necessary to retrieve
     # all in library.
-    sp_auth = connect(scope="user-library-read user-modify-playback-state")
-
+    sp_auth = ctx
     click.secho("This might take a few seconds...", fg="yellow")
     saved_albums = []
     offset = 0
@@ -96,12 +123,11 @@ def play_random_saved_album():
             break
 
 
-@main.command()
-def add_current_track_to_playlists():
+@main.command("actp")
+@click.pass_obj
+def add_current_track_to_playlists(ctx):
 
-    sp_auth = connect(
-        scope="user-read-playback-state playlist-read-private playlist-read-collaborative playlist-modify-public playlist-modify-private"
-    )
+    sp_auth = ctx
 
     try:
         playback = get_current_playback(display=True)
@@ -153,44 +179,48 @@ def add_current_track_to_playlists():
 
 
 @main.command("prev")
-def previous_track():
-    sp_auth = connect(scope=USER_MODIFY_PLAYBACK_STATE)
+@click.pass_obj
+def previous_track(ctx):
+    sp_auth = ctx
     sp_auth.previous_track()
 
-    get_current_playback(display=True)
+    get_current_playback(sp_auth=sp_auth, display=True)
 
 
 @main.command("next")
-def next_track():
-    sp_auth = connect(scope=USER_MODIFY_PLAYBACK_STATE)
+@click.pass_obj
+def next_track(ctx):
+    sp_auth = ctx
     sp_auth.next_track()
 
-    get_current_playback(display=True)
+    get_current_playback(sp_auth=sp_auth, display=True)
 
 
 @main.command("pause")
-def pause_playback():
-    sp_auth = connect(scope=USER_MODIFY_PLAYBACK_STATE)
+@click.pass_obj
+def pause_playback(ctx):
+    sp_auth = ctx
     sp_auth.pause_playback()
 
     click.secho("Playback paused.")
 
 
 @main.command("play")
-def start_playback():
-    sp_auth = connect(scope=USER_MODIFY_PLAYBACK_STATE)
+def start_playback(ctx):
+    sp_auth = ctx
     sp_auth.start_playback()
 
     click.secho("Playback resumed.")
-    get_current_playback(display=True)
+    get_current_playback(sp_auth=sp_auth, display=True)
 
 
 @main.command("vol")
 @click.option("-u/-d", "--up/--down", required=True)
-def volume(up):
+@click.pass_obj
+def volume(ctx, up):
 
-    sp_auth = connect(scope=USER_MODIFY_PLAYBACK_STATE)
-    playback_info = get_current_playback(display=False)
+    sp_auth = ctx
+    playback_info = get_current_playback(sp_auth=sp_auth, display=False)
 
     if up:
         previous_volume = playback_info["volume"]
@@ -210,19 +240,26 @@ def volume(up):
 
 
 @main.command("np")
-# @click.option("-v", "--verbose")
-def now_playing():
+@click.option("-v", "--verbose", is_flag=True)
+@click.pass_obj
+def now_playing(ctx, verbose):
 
-    get_current_playback(display=True)
+    sp_auth = ctx
+    playback = get_current_playback(sp_auth=sp_auth, display=True)
 
-    # TODO: add verbose option to display audio features
+    if verbose:
+        audio_features = sp_auth.audio_features(playback["track_uri"])
+        click.secho(style("Estimates:", underline=True))
+        click.echo(f"BPM: {audio_features[0]['tempo']}")
+        click.echo(f"Time signature: 4/{audio_features[0]['time_signature']}")
 
 
 @main.command("shuffle")
 @click.option("-on/-off", default=True)
-def toggle_shuffle(on):
+@click.pass_obj
+def toggle_shuffle(ctx, on):
 
-    sp_auth = connect(scope=USER_MODIFY_PLAYBACK_STATE)
+    sp_auth = ctx
 
     if on:
         sp_auth.shuffle(state=True)
@@ -233,5 +270,14 @@ def toggle_shuffle(on):
         click.echo(f"Shuffle toggled {style('off', fg='red')}.")
 
 
-# TODO: add currently_playing (with more info),
-# TODO: recently_played, smart searching, shuffle
+@main.command("rp")
+@click.pass_obj
+def recently_played(ctx):
+
+    sp_auth = ctx
+    recent_playback = sp_auth.current_user_recently_played(limit=25)
+
+    # click.echo(f"{pprint(recent_playback['items'][0]['track'])}")
+
+
+# TODO: recently_played, smart searching
