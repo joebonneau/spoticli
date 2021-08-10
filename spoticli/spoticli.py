@@ -8,7 +8,7 @@ from click.termui import style
 from tabulate import tabulate
 from pprint import pprint
 
-from spoticli.util import convert_duration, get_current_playback
+from spoticli.util import convert_timestamp, get_current_playback
 
 
 SPOTIFY_USER_ID = os.environ.get("SPOTIFY_USER_ID")
@@ -120,6 +120,22 @@ def create_playlist(ctx, public, collaborative, description, name):
 
         click.secho(
             style(f"Playlist '{concat_name}' created successfully!", fg="green")
+        )
+
+
+@main.command("seek")
+@click.argument("timestamp", required=True)
+@click.pass_obj
+def seek(ctx, timestamp):
+
+    sp_auth = ctx
+
+    try:
+        timestamp_in_ms = convert_timestamp(timestamp)
+        sp_auth.seek_track(timestamp_in_ms)
+    except:
+        click.secho(
+            style("Incorrect format: must be in minutes:seconds format", fg="red")
         )
 
 

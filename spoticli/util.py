@@ -29,7 +29,7 @@ def get_current_playback(sp_auth: sp.Spotify, display: bool) -> dict:
     playback["album_name"] = playback_items["album"]["name"]
     playback["album_uri"] = playback_items["album"]["uri"]
     playback["release_date"] = playback_items["album"]["release_date"]
-    playback["duration"] = convert_duration(playback_items["duration_ms"])
+    playback["duration"] = convert_ms(playback_items["duration_ms"])
     playback["volume"] = current_playback["device"]["volume_percent"]
     playback["shuffle_state"] = current_playback["shuffle_state"]
 
@@ -48,7 +48,7 @@ def get_current_playback(sp_auth: sp.Spotify, display: bool) -> dict:
     return playback
 
 
-def convert_duration(duration_ms: int) -> str:
+def convert_ms(duration_ms: int) -> str:
 
     minutes, seconds = divmod(duration_ms / 1000, 60)
     rounded_seconds = int(round(seconds, 0))
@@ -59,3 +59,20 @@ def convert_duration(duration_ms: int) -> str:
     duration = f"{int(minutes)}:{rounded_seconds}"
 
     return duration
+
+
+def convert_timestamp(timestamp: str) -> int:
+
+    timestamp_list = timestamp.split(":")
+    minutes = timestamp_list[0]
+    seconds = timestamp_list[1]
+    minutes_in_ms = int(minutes) * 60 * 1000
+    seconds_in_ms = int(seconds) * 1000
+    total_ms = minutes_in_ms + seconds_in_ms
+
+    if len(seconds) > 2 or len(seconds) < 2:
+        raise ValueError
+    elif minutes_in_ms < 0 or seconds_in_ms < 0:
+        raise ValueError
+    else:
+        return total_ms
