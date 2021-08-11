@@ -77,6 +77,7 @@ def previous_track(ctx):
         sleep(0.1)
         get_current_playback(sp_auth=sp_auth, display=True)
     except AttributeError:
+        # AttributeError is thrown if authorization was unsuccessful, so show that error instead.
         pass
 
 
@@ -94,6 +95,7 @@ def next_track(ctx):
         sleep(0.1)
         get_current_playback(sp_auth=sp_auth, display=True)
     except AttributeError:
+        # AttributeError is thrown if authorization was unsuccessful, so show that error instead.
         pass
 
 
@@ -110,6 +112,7 @@ def pause_playback(ctx):
 
         click.secho("Playback paused.")
     except AttributeError:
+        # AttributeError is thrown if authorization was unsuccessful, so show that error instead.
         pass
 
 
@@ -127,6 +130,7 @@ def start_playback(ctx):
         click.secho("Playback resumed.")
         get_current_playback(sp_auth=sp_auth, display=True)
     except AttributeError:
+        # AttributeError is thrown if authorization was unsuccessful, so show that error instead.
         pass
 
 
@@ -165,6 +169,7 @@ def create_playlist(ctx, public, collaborative, description, name):
                 style(f"Playlist '{concat_name}' created successfully!", fg="green")
             )
         except AttributeError:
+            # AttributeError is thrown if authorization was unsuccessful, so show that error instead.
             pass
 
 
@@ -184,6 +189,7 @@ def seek(ctx, timestamp):
         timestamp_in_ms = convert_timestamp(timestamp)
         sp_auth.seek_track(timestamp_in_ms)
     except AttributeError:
+        # AttributeError is thrown if authorization was unsuccessful, so show that error instead.
         pass
     except:
         click.secho(
@@ -220,6 +226,7 @@ def volume(ctx, up):
 
         click.secho(f"Current volume: {new_volume}")
     except AttributeError:
+        # AttributeError is thrown if authorization was unsuccessful, so show that error instead.
         pass
 
 
@@ -242,6 +249,7 @@ def now_playing(ctx, verbose):
             click.echo(f"BPM: {audio_features[0]['tempo']}")
             click.echo(f"Time signature: 4/{audio_features[0]['time_signature']}")
     except AttributeError:
+        # AttributeError is thrown if authorization was unsuccessful, so show that error instead.
         pass
 
 
@@ -264,6 +272,7 @@ def toggle_shuffle(ctx, on):
             sp_auth.shuffle(state=False)
             click.echo(f"Shuffle toggled {style('off', fg='red')}.")
     except AttributeError:
+        # AttributeError is thrown if authorization was unsuccessful, so show that error instead.
         pass
 
 
@@ -345,6 +354,7 @@ def play_random_saved_album(ctx):
                 sp_auth.start_playback(context_uri=saved_albums[rand_i]["album_uri"])
                 break
     except AttributeError:
+        # AttributeError is thrown if authorization was unsuccessful, so show that error instead.
         pass
 
 
@@ -407,6 +417,7 @@ def add_current_track_to_playlists(ctx):
         click.secho("Nothing is currently playing!", fg="red")
 
     except AttributeError:
+        # AttributeError is thrown if authorization was unsuccessful, so show that error instead.
         pass
 
 
@@ -500,6 +511,7 @@ def recently_played(ctx):
             else:
                 break
     except AttributeError:
+        # AttributeError is thrown if authorization was unsuccessful, so show that error instead.
         pass
 
 
