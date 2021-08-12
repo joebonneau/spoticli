@@ -79,6 +79,8 @@ def previous_track(ctx):
     except AttributeError:
         # AttributeError is thrown if authorization was unsuccessful, so show that error instead.
         pass
+    except SpotifyException as e:
+        click.secho(e, fg="red")
 
 
 @main.command("next")
@@ -97,6 +99,8 @@ def next_track(ctx):
     except AttributeError:
         # AttributeError is thrown if authorization was unsuccessful, so show that error instead.
         pass
+    except SpotifyException as e:
+        click.secho(e, fg="red")
 
 
 @main.command("pause")
@@ -114,6 +118,8 @@ def pause_playback(ctx):
     except AttributeError:
         # AttributeError is thrown if authorization was unsuccessful, so show that error instead.
         pass
+    except SpotifyException as e:
+        click.secho(e, fg="red")
 
 
 @main.command("play")
@@ -132,6 +138,8 @@ def start_playback(ctx):
     except AttributeError:
         # AttributeError is thrown if authorization was unsuccessful, so show that error instead.
         pass
+    except SpotifyException as e:
+        click.secho(e, fg="red")
 
 
 @main.command("cp")
@@ -171,6 +179,8 @@ def create_playlist(ctx, public, collaborative, description, name):
         except AttributeError:
             # AttributeError is thrown if authorization was unsuccessful, so show that error instead.
             pass
+        except SpotifyException as e:
+            click.secho(e, fg="red")
 
 
 @main.command("seek")
@@ -191,6 +201,8 @@ def seek(ctx, timestamp):
     except AttributeError:
         # AttributeError is thrown if authorization was unsuccessful, so show that error instead.
         pass
+    except SpotifyException as e:
+        click.secho(e, fg="red")
     except:
         click.secho(
             style("Incorrect format: must be in minutes:seconds format", fg="red")
@@ -199,6 +211,7 @@ def seek(ctx, timestamp):
 
 @main.command("vol")
 @click.option("-u/-d", "--up/--down", required=True)
+# TODO: Need to implement this better so that an increment can be specified.
 @click.pass_obj
 def volume(ctx, up):
     """
@@ -228,6 +241,8 @@ def volume(ctx, up):
     except AttributeError:
         # AttributeError is thrown if authorization was unsuccessful, so show that error instead.
         pass
+    except SpotifyException as e:
+        click.secho(e, fg="red")
 
 
 @main.command("now")
@@ -251,6 +266,8 @@ def now_playing(ctx, verbose):
     except AttributeError:
         # AttributeError is thrown if authorization was unsuccessful, so show that error instead.
         pass
+    except SpotifyException as e:
+        click.secho(e, fg="red")
 
 
 @main.command("shuffle")
@@ -274,6 +291,8 @@ def toggle_shuffle(ctx, on):
     except AttributeError:
         # AttributeError is thrown if authorization was unsuccessful, so show that error instead.
         pass
+    except SpotifyException as e:
+        click.secho(e, fg="red")
 
 
 @main.command("prsa")
@@ -356,6 +375,8 @@ def play_random_saved_album(ctx):
     except AttributeError:
         # AttributeError is thrown if authorization was unsuccessful, so show that error instead.
         pass
+    except SpotifyException as e:
+        click.secho(e, fg="red")
 
 
 @main.command("actp")
@@ -415,10 +436,11 @@ def add_current_track_to_playlists(ctx):
                 )
     except TypeError:
         click.secho("Nothing is currently playing!", fg="red")
-
     except AttributeError:
         # AttributeError is thrown if authorization was unsuccessful, so show that error instead.
         pass
+    except SpotifyException as e:
+        click.secho(e, fg="red")
 
 
 @main.command("recent")
@@ -513,6 +535,8 @@ def recently_played(ctx):
     except AttributeError:
         # AttributeError is thrown if authorization was unsuccessful, so show that error instead.
         pass
+    except SpotifyException as e:
+        click.secho(e, fg="red")
 
 
 # TODO: smart searching
