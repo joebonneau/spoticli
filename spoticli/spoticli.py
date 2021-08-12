@@ -32,6 +32,8 @@ states = [
 ]
 STATE_STR = " ".join(states)
 
+device_error_message = " Try pressing play on the device that you want to control."
+
 
 @click.group()
 @click.pass_context
@@ -80,7 +82,7 @@ def previous_track(ctx):
         # AttributeError is thrown if authorization was unsuccessful, so show that error instead.
         pass
     except SpotifyException as e:
-        click.secho(e, fg="red")
+        click.secho(e + device_error_message, fg="red")
 
 
 @main.command("next")
@@ -100,7 +102,7 @@ def next_track(ctx):
         # AttributeError is thrown if authorization was unsuccessful, so show that error instead.
         pass
     except SpotifyException as e:
-        click.secho(e, fg="red")
+        click.secho(e + device_error_message, fg="red")
 
 
 @main.command("pause")
@@ -119,7 +121,7 @@ def pause_playback(ctx):
         # AttributeError is thrown if authorization was unsuccessful, so show that error instead.
         pass
     except SpotifyException as e:
-        click.secho(e, fg="red")
+        click.secho(e + device_error_message, fg="red")
 
 
 @main.command("play")
@@ -139,7 +141,7 @@ def start_playback(ctx):
         # AttributeError is thrown if authorization was unsuccessful, so show that error instead.
         pass
     except SpotifyException as e:
-        click.secho(e, fg="red")
+        click.secho(e + device_error_message, fg="red")
 
 
 @main.command("cp")
@@ -180,7 +182,7 @@ def create_playlist(ctx, public, collaborative, description, name):
             # AttributeError is thrown if authorization was unsuccessful, so show that error instead.
             pass
         except SpotifyException as e:
-            click.secho(e, fg="red")
+            click.secho(e + device_error_message, fg="red")
 
 
 @main.command("seek")
@@ -202,7 +204,7 @@ def seek(ctx, timestamp):
         # AttributeError is thrown if authorization was unsuccessful, so show that error instead.
         pass
     except SpotifyException as e:
-        click.secho(e, fg="red")
+        click.secho(e + device_error_message, fg="red")
     except:
         click.secho(
             style("Incorrect format: must be in minutes:seconds format", fg="red")
@@ -242,7 +244,7 @@ def volume(ctx, up):
         # AttributeError is thrown if authorization was unsuccessful, so show that error instead.
         pass
     except SpotifyException as e:
-        click.secho(e, fg="red")
+        click.secho(e + device_error_message, fg="red")
 
 
 @main.command("now")
@@ -267,7 +269,7 @@ def now_playing(ctx, verbose):
         # AttributeError is thrown if authorization was unsuccessful, so show that error instead.
         pass
     except SpotifyException as e:
-        click.secho(e, fg="red")
+        click.secho(e + device_error_message, fg="red")
 
 
 @main.command("shuffle")
@@ -292,7 +294,7 @@ def toggle_shuffle(ctx, on):
         # AttributeError is thrown if authorization was unsuccessful, so show that error instead.
         pass
     except SpotifyException as e:
-        click.secho(e, fg="red")
+        click.secho(e + device_error_message, fg="red")
 
 
 @main.command("prsa")
@@ -376,7 +378,7 @@ def play_random_saved_album(ctx):
         # AttributeError is thrown if authorization was unsuccessful, so show that error instead.
         pass
     except SpotifyException as e:
-        click.secho(e, fg="red")
+        click.secho(e + device_error_message, fg="red")
 
 
 @main.command("actp")
@@ -440,7 +442,7 @@ def add_current_track_to_playlists(ctx):
         # AttributeError is thrown if authorization was unsuccessful, so show that error instead.
         pass
     except SpotifyException as e:
-        click.secho(e, fg="red")
+        click.secho(e + device_error_message, fg="red")
 
 
 @main.command("recent")
@@ -536,7 +538,7 @@ def recently_played(ctx):
         # AttributeError is thrown if authorization was unsuccessful, so show that error instead.
         pass
     except SpotifyException as e:
-        click.secho(e, fg="red")
+        click.secho(e + device_error_message, fg="red")
 
 
 # TODO: smart searching

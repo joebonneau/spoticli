@@ -41,8 +41,10 @@ Windows Powershell:
 Once Poetry is installed, install the dependencies from the `pyproject.toml` file by running the following in the spoticli directory:
 
 ```bash
-poetry install
+poetry install --no-dev
 ```
+
+If you happen to be contributing, go ahead and drop the `--no-dev` :)
 
 ### Via a package manager
 SpotiCLI is not currently deployed to PyPI as a package that is installable via pip or some other package manager. (Coming at a later date)
@@ -84,15 +86,15 @@ spoticli recent --help
 ```
 
 As of August 11, 2021, here is a comprehensive list of all available commands:
-* actp (add current track to playlists)
-* cp (create playlist)
-* next
-* now (current playback)
-* pause
-* play
-* prev (previous)
-* prsa (play random saved album)
-* recent (recent playback)
-* seek (jump forwards or backwards in the current playback)
-* shuffle
-* vol (volume)
+* `actp` (add current track to playlists)
+* `cp` (create playlist)
+* `next`
+* `now` (current playback)
+* `pause`
+* `play`
+* `prev` (previous)
+* `prsa` (play random saved album)
+* `recent` (recent playback)
+* `seek` (jump forwards or backwards in the current playback)
+* `shuffle`
+* `vol` (volume)
