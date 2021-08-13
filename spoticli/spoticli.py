@@ -212,34 +212,37 @@ def seek(ctx, timestamp):
 
 
 @main.command("vol")
-@click.option("-u/-d", "--up/--down", required=True)
+@click.option("-u", "--up", default=10, show_default=True)
+@click.option("-d", "--down", default=10, show_default=True)
 # TODO: Need to implement this better so that an increment can be specified.
 @click.pass_obj
-def volume(ctx, up):
+def volume(ctx, up, down):
     """
-    Increases or decreases the playback volume by 10%.
+    Increases or decreases the playback volume by the increment specified (defaults to 10%).
     """
 
     sp_auth = ctx
 
     try:
+        sleep(0.1)
         playback_info = get_current_playback(sp_auth=sp_auth, display=False)
         previous_volume = playback_info["volume"]
 
-        if up:
-            new_volume = int(round(previous_volume + 10, 0))
-        else:
-            new_volume = int(round(previous_volume - 10, 0))
+        if up or down:
+            if up:
+                new_volume = int(round(previous_volume + up, 0))
+                if new_volume > 100:
+                    new_volume = 100
+            elif down:
+                new_volume = int(round(previous_volume - down, 0))
+                if new_volume < 0:
+                    new_volume = 0
 
-        if new_volume > 100:
-            new_volume = 100
-        elif new_volume < 0:
-            new_volume = 0
-
-        if not previous_volume == 100:
             sp_auth.volume(new_volume)
+            click.secho(f"New volume: {new_volume}")
+        else:
+            click.secho(f"Current volume: {previous_volume}")
 
-        click.secho(f"Current volume: {new_volume}")
     except AttributeError:
         # AttributeError is thrown if authorization was unsuccessful, so show that error instead.
         pass
