@@ -1,15 +1,48 @@
-from typing import Iterable
+from typing import Iterable, Dict, Any
 import os
 
 import spotipy as sp
 import click
 from click.termui import style
 
-# SPOTIFY_CLIENT_ID = os.environ.get("SPOTIFY_CLIENT_ID")
-# SPOTIFY_CLIENT_SECRET = os.environ.get("SPOTIFY_CLIENT_SECRET")
-# SPOTIFY_REDIRECT_URI = os.environ.get("SPOTIFY_REDIRECT_URI")
 
-# USER_READ_PLAYBACK_STATE = "user-read-playback-state"
+def add_playlist_to_queue(sp_auth, uri: str) -> None:
+
+    offset = 0
+    click.secho("Adding playlist tracks to queue...", fg="magenta")
+    while True:
+        playlists_res = sp_auth.playlist_items(
+            uri, limit=100, fields="items.track.uri", offset=offset
+        )
+        for item in playlists_res["items"]:
+            sp_auth.add_to_queue(item["track"]["uri"])
+        if len(playlists_res) < 100:
+            break
+
+        offset += 100
+
+    click.secho("All playlist tracks added successfully!", fg="green")
+
+
+def add_album_to_queue(sp_auth: sp.Spotify, uri: str) -> None:
+
+    while True:
+        tracks_res = sp_auth.album_tracks(uri, limit=50, offset=0)
+        tracks = tracks_res["items"]
+        for track in tracks:
+            sp_auth.add_to_queue(track["uri"])
+        if len(tracks) < 50:
+            break
+
+
+def get_artist_names(res: Dict[str, Any]) -> str:
+
+    artists = []
+    for artist in res["artists"]:
+        artists.append(artist["name"])
+    artists_str = ", ".join(artists)
+
+    return artists_str
 
 
 def get_current_playback(sp_auth: sp.Spotify, display: bool) -> dict:
@@ -22,10 +55,7 @@ def get_current_playback(sp_auth: sp.Spotify, display: bool) -> dict:
     playback_items = current_playback["item"]
     playback = {}
 
-    artists = []
-    for _, artist in enumerate(playback_items["artists"]):
-        artists.append(artist["name"])
-    artists_str = ", ".join(artists)
+    artists_str = get_artist_names(playback_items)
 
     playback["artists"] = artists_str
     playback["track_name"] = playback_items["name"]
@@ -88,3 +118,13 @@ def convert_timestamp(timestamp: str) -> int:
         raise ValueError
     else:
         return total_ms
+
+
+def truncate(name: str, length: int) -> str:
+    """
+    Truncates a string and adds an elipsis if it exceeds the specified length. Otherwise, return the unmodified string.
+    """
+    if len(name) > length:
+        name = name[0:length] + "..."
+
+    return name

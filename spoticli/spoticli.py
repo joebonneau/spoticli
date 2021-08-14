@@ -1,6 +1,7 @@
 import random
 import os
 from time import sleep
+from pprint import pprint
 
 import spotipy as sp
 from spotipy.oauth2 import SpotifyOAuth, SpotifyOauthError
@@ -12,7 +13,15 @@ from click.termui import style
 
 from tabulate import tabulate
 
-from spoticli.util import convert_timestamp, get_current_playback
+from spoticli.util import (
+    convert_timestamp,
+    convert_ms,
+    get_artist_names,
+    get_current_playback,
+    truncate,
+    add_album_to_queue,
+    add_playlist_to_queue,
+)
 
 
 SPOTIFY_USER_ID = os.environ.get("SPOTIFY_USER_ID")
@@ -82,7 +91,7 @@ def previous_track(ctx):
         # AttributeError is thrown if authorization was unsuccessful, so show that error instead.
         pass
     except SpotifyException as e:
-        click.secho(e + device_error_message, fg="red")
+        click.secho(str(e) + device_error_message, fg="red")
 
 
 @main.command("next")
@@ -102,7 +111,7 @@ def next_track(ctx):
         # AttributeError is thrown if authorization was unsuccessful, so show that error instead.
         pass
     except SpotifyException as e:
-        click.secho(e + device_error_message, fg="red")
+        click.secho(str(e) + device_error_message, fg="red")
 
 
 @main.command("pause")
@@ -121,7 +130,7 @@ def pause_playback(ctx):
         # AttributeError is thrown if authorization was unsuccessful, so show that error instead.
         pass
     except SpotifyException as e:
-        click.secho(e + device_error_message, fg="red")
+        click.secho(str(e) + device_error_message, fg="red")
 
 
 @main.command("play")
@@ -141,7 +150,7 @@ def start_playback(ctx):
         # AttributeError is thrown if authorization was unsuccessful, so show that error instead.
         pass
     except SpotifyException as e:
-        click.secho(e + device_error_message, fg="red")
+        click.secho(str(e) + device_error_message, fg="red")
 
 
 @main.command("cp")
@@ -182,7 +191,7 @@ def create_playlist(ctx, public, collaborative, description, name):
             # AttributeError is thrown if authorization was unsuccessful, so show that error instead.
             pass
         except SpotifyException as e:
-            click.secho(e + device_error_message, fg="red")
+            click.secho(str(e) + device_error_message, fg="red")
 
 
 @main.command("seek")
@@ -204,50 +213,65 @@ def seek(ctx, timestamp):
         # AttributeError is thrown if authorization was unsuccessful, so show that error instead.
         pass
     except SpotifyException as e:
-        click.secho(e + device_error_message, fg="red")
+        click.secho(str(e) + device_error_message, fg="red")
     except:
         click.secho(
             style("Incorrect format: must be in minutes:seconds format", fg="red")
         )
 
 
-@main.command("vol")
-@click.option("-u", "--up", default=10, show_default=True)
-@click.option("-d", "--down", default=10, show_default=True)
-# TODO: Need to implement this better so that an increment can be specified.
+@main.command("volup")
+@click.argument("amount", default=10)
 @click.pass_obj
-def volume(ctx, up, down):
+def increase_volume(ctx, amount):
     """
-    Increases or decreases the playback volume by the increment specified (defaults to 10%).
+    Increases volume by the increment specified (defaults to 10%).
     """
 
     sp_auth = ctx
 
     try:
-        sleep(0.1)
         playback_info = get_current_playback(sp_auth=sp_auth, display=False)
         previous_volume = playback_info["volume"]
 
-        if up or down:
-            if up:
-                new_volume = int(round(previous_volume + up, 0))
-                if new_volume > 100:
-                    new_volume = 100
-            elif down:
-                new_volume = int(round(previous_volume - down, 0))
-                if new_volume < 0:
-                    new_volume = 0
+        new_volume = int(round(previous_volume + amount, 0))
+        if new_volume > 100:
+            new_volume = 100
 
-            sp_auth.volume(new_volume)
-            click.secho(f"New volume: {new_volume}")
-        else:
-            click.secho(f"Current volume: {previous_volume}")
-
+        sp_auth.volume(new_volume)
+        click.secho(f"New volume: {new_volume}")
     except AttributeError:
         # AttributeError is thrown if authorization was unsuccessful, so show that error instead.
         pass
     except SpotifyException as e:
-        click.secho(e + device_error_message, fg="red")
+        click.secho(str(e) + device_error_message, fg="red")
+
+
+@main.command("voldown")
+@click.argument("amount", default=10)
+@click.pass_obj
+def decrease_volume(ctx, amount):
+    """
+    Decreases volume by the increment specified (defaults to 10%).
+    """
+
+    sp_auth = ctx
+
+    try:
+        playback_info = get_current_playback(sp_auth=sp_auth, display=False)
+        previous_volume = playback_info["volume"]
+
+        new_volume = int(round(previous_volume - amount, 0))
+        if new_volume < 0:
+            new_volume = 0
+
+        sp_auth.volume(new_volume)
+        click.secho(f"New volume: {new_volume}")
+    except AttributeError:
+        # AttributeError is thrown if authorization was unsuccessful, so show that error instead.
+        pass
+    except SpotifyException as e:
+        click.secho(str(e) + device_error_message, fg="red")
 
 
 @main.command("now")
@@ -272,7 +296,7 @@ def now_playing(ctx, verbose):
         # AttributeError is thrown if authorization was unsuccessful, so show that error instead.
         pass
     except SpotifyException as e:
-        click.secho(e + device_error_message, fg="red")
+        click.secho(str(e) + device_error_message, fg="red")
 
 
 @main.command("shuffle")
@@ -297,7 +321,7 @@ def toggle_shuffle(ctx, on):
         # AttributeError is thrown if authorization was unsuccessful, so show that error instead.
         pass
     except SpotifyException as e:
-        click.secho(e + device_error_message, fg="red")
+        click.secho(str(e) + device_error_message, fg="red")
 
 
 @main.command("prsa")
@@ -367,12 +391,7 @@ def play_random_saved_album(ctx):
                 show_choices=True,
             )
             if queue.lower() == "q":
-                tracks_res = sp_auth.album_tracks(
-                    saved_albums[rand_i]["album_uri"], limit=50
-                )
-                tracks = tracks_res["items"]
-                for track in tracks:
-                    sp_auth.add_to_queue(track["uri"])
+                add_album_to_queue(sp_auth, saved_albums[rand_i]["album_uri"])
                 break
             else:
                 sp_auth.start_playback(context_uri=saved_albums[rand_i]["album_uri"])
@@ -381,7 +400,7 @@ def play_random_saved_album(ctx):
         # AttributeError is thrown if authorization was unsuccessful, so show that error instead.
         pass
     except SpotifyException as e:
-        click.secho(e + device_error_message, fg="red")
+        click.secho(str(e) + device_error_message, fg="red")
 
 
 @main.command("actp")
@@ -445,7 +464,7 @@ def add_current_track_to_playlists(ctx):
         # AttributeError is thrown if authorization was unsuccessful, so show that error instead.
         pass
     except SpotifyException as e:
-        click.secho(e + device_error_message, fg="red")
+        click.secho(str(e) + device_error_message, fg="red")
 
 
 @main.command("recent")
@@ -522,12 +541,7 @@ def recently_played(ctx):
                     if item_type == "t":
                         sp_auth.add_to_queue(recent_dict["track_uri"][i])
                     else:
-                        tracks_res = sp_auth.album_tracks(
-                            recent_dict["album_uri"][index], limit=50
-                        )
-                        tracks = tracks_res["items"]
-                        for track in tracks:
-                            sp_auth.add_to_queue(track[index]["uri"])
+                        add_album_to_queue(sp_auth, recent_dict["album_uri"][index])
                 else:
                     if item_type == "t":
                         sp_auth.start_playback(uris=[recent_dict["track_uri"][index]])
@@ -541,7 +555,108 @@ def recently_played(ctx):
         # AttributeError is thrown if authorization was unsuccessful, so show that error instead.
         pass
     except SpotifyException as e:
-        click.secho(e + device_error_message, fg="red")
+        click.secho(str(e) + device_error_message, fg="red")
 
 
-# TODO: smart searching
+@main.command("search")
+@click.option(
+    "-t",
+    "type_",
+    type=click.Choice(("album", "artist", "playlist", "track")),
+    required=True,
+)
+@click.argument("term", required=True)
+@click.pass_obj
+def search(ctx, term, type_):
+    sp_auth = ctx
+
+    k = type_ + "s"
+    try:
+        search_res = sp_auth.search(q=term, limit=10, type=type_)
+        items = search_res[k]["items"]
+
+        if k == "albums":
+            results = [("index", "artist(s)", "album title", "release date")]
+            uris = []
+            for i, item in enumerate(items):
+                artists = get_artist_names(item)
+                name = item["name"]
+                uris.append(item["uri"])
+                results.append((i, truncate(artists, 50), name, item["release_date"]))
+        elif k == "artists":
+            results = [("index", "artist")]
+            for i, item in enumerate(items):
+                results.append((i, item["name"]))
+        elif k == "playlists":
+            results = [("index", "name", "creator", "description", "tracks")]
+            uris = []
+            for i, item in enumerate(items):
+                desc = item["description"]
+                uris.append(item["uri"])
+                results.append(
+                    (
+                        i,
+                        item["name"],
+                        item["owner"]["display_name"],
+                        truncate(desc, 50),
+                        item["tracks"]["total"],
+                    )
+                )
+        elif k == "tracks":
+            results = [
+                (
+                    "index",
+                    "name",
+                    "duration",
+                    "artist(s)",
+                    "album title",
+                    "release date",
+                )
+            ]
+            uris = []
+            for i, item in enumerate(items):
+                artists = get_artist_names(item)
+                name = item["name"]
+                uris.append(item["uri"])
+                results.append(
+                    (
+                        i,
+                        name,
+                        convert_ms(item["duration_ms"]),
+                        truncate(artists, 50),
+                        item["album"]["name"],
+                        item["album"]["release_date"],
+                    )
+                )
+        click.secho(tabulate(results, headers="firstrow", tablefmt="github"))
+        proceed = click.prompt(
+            "Do you want to proceed with one of these items?",
+            type=Choice(("y", "n"), case_sensitive=False),
+            show_choices=True,
+        )
+        if proceed == "y":
+            index = click.prompt(
+                "Enter the index",
+                type=Choice((str(num) for num in range(0, 10))),
+                show_choices=False,
+            )
+            index = int(index)
+            action = click.prompt(
+                "Play now or add to queue?",
+                type=Choice(("p", "q"), case_sensitive=False),
+                show_choices=True,
+            )
+            if action == "p":
+                sp_auth.start_playback(context_uri=uris[index])
+                click.secho(f"Playback started.", fg="green")
+            else:
+                if type_ == "album":
+                    add_album_to_queue(sp_auth, uris[index])
+                elif type_ == "playlist":
+                    add_playlist_to_queue(sp_auth, uris[index])
+        else:
+            pass
+    except AttributeError:
+        pass
+    except SpotifyException as e:
+        click.secho(str(e) + device_error_message, fg="red")
