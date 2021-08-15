@@ -146,7 +146,6 @@ def convert_datetime(datetime_str: str) -> int:
     datetime_obj = datetime.strptime(datetime_str, datetime_pattern)
     unix_timestamp = time.mktime(datetime_obj.timetuple()) * 1000
 
-    # TODO: Figure this out
     return int(unix_timestamp)
 
 

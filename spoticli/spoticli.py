@@ -726,14 +726,14 @@ def search(ctx, term, type_):
                         uris[index], album_type="album,single"
                     )
                     albums = []
-                    display_albums = []
+                    uris = []
                     for i, item in enumerate(artist_albums_res["items"]):
                         album_type = item["album_type"]
                         artists = truncate(get_artist_names(item))
                         album_name = item["name"]
                         release_date = item["release_date"]
                         total_tracks = item["total_tracks"]
-                        uri = item["uri"]
+                        uris.append(item["uri"])
                         albums.append(
                             {
                                 "index": i,
@@ -741,21 +741,10 @@ def search(ctx, term, type_):
                                 "album type": album_type,
                                 "tracks": total_tracks,
                                 "release date": release_date,
-                                "uri": uri,
                             }
                         )
-                        display_albums.append(
-                            {
-                                "index": i,
-                                "album name": album_name,
-                                "album type": album_type,
-                                "tracks": total_tracks,
-                                "release date": release_date,
-                            }
-                        )
-                    click.echo(
-                        tabulate(display_albums, headers="keys", tablefmt="github")
-                    )
+
+                    click.echo(tabulate(albums, headers="keys", tablefmt="github"))
                     further_action = click.prompt(
                         "Do you want to take further action?",
                         type=Choice(("y", "n"), case_sensitive=False),
@@ -774,9 +763,9 @@ def search(ctx, term, type_):
                             show_choices=True,
                         )
                         if play_or_queue == "p":
-                            sp_auth.start_playback(context_uri=albums[idx]["uri"])
+                            sp_auth.start_playback(context_uri=uris[idx])
                         else:
-                            add_album_to_queue(sp_auth, albums[idx]["uri"])
+                            add_album_to_queue(sp_auth, uris[idx])
                             click.secho(
                                 "Album successfully added to queue!", fg="green"
                             )
