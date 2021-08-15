@@ -1,5 +1,7 @@
-from typing import Iterable, Dict, Any
-import os
+from typing import Dict, Any
+import re
+from datetime import datetime
+import time
 
 import spotipy as sp
 import click
@@ -7,6 +9,9 @@ from click.termui import style
 
 
 def add_playlist_to_queue(sp_auth, uri: str) -> None:
+    """
+    Adds all tracks from a playlist to the queue.
+    """
 
     offset = 0
     click.secho("Adding playlist tracks to queue...", fg="magenta")
@@ -14,8 +19,9 @@ def add_playlist_to_queue(sp_auth, uri: str) -> None:
         playlists_res = sp_auth.playlist_items(
             uri, limit=100, fields="items.track.uri", offset=offset
         )
-        for item in playlists_res["items"]:
-            sp_auth.add_to_queue(item["track"]["uri"])
+        with click.progressbar(playlists_res["items"]) as items:
+            for item in items:
+                sp_auth.add_to_queue(item["track"]["uri"])
         if len(playlists_res) < 100:
             break
 
@@ -25,19 +31,25 @@ def add_playlist_to_queue(sp_auth, uri: str) -> None:
 
 
 def add_album_to_queue(sp_auth: sp.Spotify, uri: str) -> None:
+    """
+    Adds all tracks of an album to the queue.
+    """
 
     while True:
         tracks_res = sp_auth.album_tracks(uri, limit=50, offset=0)
-        tracks = tracks_res["items"]
-        for track in tracks:
-            sp_auth.add_to_queue(track["uri"])
-        if len(tracks) < 50:
+        with click.progressbar(tracks_res["items"]) as tracks:
+            for track in tracks:
+                sp_auth.add_to_queue(track["uri"])
+        if len(tracks_res) < 50:
             break
 
     click.secho("Album successfully added to queue!", fg="green")
 
 
 def get_artist_names(res: Dict[str, Any]) -> str:
+    """
+    Retrieves all artist names for a given input to the "album" key of a response.
+    """
 
     artists = []
     for artist in res["artists"]:
@@ -120,12 +132,25 @@ def convert_timestamp(timestamp: str) -> int:
     if (len(seconds) > 2 or len(seconds) < 2) or (
         minutes_in_ms < 0 or seconds_in_ms < 0
     ):
-        raise ValueError
+        raise ValueError("Invalid format. Proper format is MM:SS.")
     else:
         return total_ms
 
 
-def truncate(name: str, length: int) -> str:
+def convert_datetime(datetime_str: str) -> int:
+    """
+    Converts a string representation of a datetime (YYYYMMDD HH:MM) to milliseconds.
+    """
+
+    datetime_pattern = "%Y%m%d %H:%M"
+    datetime_obj = datetime.strptime(datetime_str, datetime_pattern)
+    unix_timestamp = time.mktime(datetime_obj.timetuple()) * 1000
+
+    # TODO: Figure this out
+    return int(unix_timestamp)
+
+
+def truncate(name: str, length: int = 50) -> str:
     """
     Truncates a string and adds an elipsis if it exceeds the specified length. Otherwise, return the unmodified string.
     """
