@@ -34,6 +34,8 @@ def add_album_to_queue(sp_auth: sp.Spotify, uri: str) -> None:
         if len(tracks) < 50:
             break
 
+    click.secho("Album successfully added to queue!", fg="green")
+
 
 def get_artist_names(res: Dict[str, Any]) -> str:
 
@@ -51,37 +53,40 @@ def get_current_playback(sp_auth: sp.Spotify, display: bool) -> dict:
     information about the current playback.
     """
 
-    current_playback = sp_auth.current_playback()
-    playback_items = current_playback["item"]
-    playback = {}
+    try:
+        current_playback = sp_auth.current_playback()
+        playback_items = current_playback["item"]
+        playback = {}
 
-    artists_str = get_artist_names(playback_items)
+        artists_str = get_artist_names(playback_items["album"])
 
-    playback["artists"] = artists_str
-    playback["track_name"] = playback_items["name"]
-    playback["track_uri"] = playback_items["uri"]
-    playback["album_name"] = playback_items["album"]["name"]
-    playback["album_type"] = playback_items["album"]["type"]
-    playback["album_uri"] = playback_items["album"]["uri"]
-    playback["release_date"] = playback_items["album"]["release_date"]
-    playback["duration"] = convert_ms(playback_items["duration_ms"])
-    playback["volume"] = current_playback["device"]["volume_percent"]
-    playback["shuffle_state"] = current_playback["shuffle_state"]
+        playback["artists"] = artists_str
+        playback["track_name"] = playback_items["name"]
+        playback["track_uri"] = playback_items["uri"]
+        playback["album_name"] = playback_items["album"]["name"]
+        playback["album_type"] = playback_items["album"]["type"]
+        playback["album_uri"] = playback_items["album"]["uri"]
+        playback["release_date"] = playback_items["album"]["release_date"]
+        playback["duration"] = convert_ms(playback_items["duration_ms"])
+        playback["volume"] = current_playback["device"]["volume_percent"]
+        playback["shuffle_state"] = current_playback["shuffle_state"]
 
-    if display:
-        track_name = style(playback["track_name"], fg="magenta")
-        artists_name = style(playback["artists"], fg="green")
-        album_name = style(playback["album_name"], fg="blue")
-        album_type = playback["album_type"]
+        if display:
+            track_name = style(playback["track_name"], fg="magenta")
+            artists_name = style(playback["artists"], fg="green")
+            album_name = style(playback["album_name"], fg="blue")
+            album_type = playback["album_type"]
 
-        click.secho(
-            f"Now playing: {track_name} by {artists_name} from the {album_type} {album_name}"
-        )
-        click.echo(
-            f"Duration: {playback['duration']}, Released: {playback['release_date']}"
-        )
+            click.secho(
+                f"Now playing: {track_name} by {artists_name} from the {album_type} {album_name}"
+            )
+            click.echo(
+                f"Duration: {playback['duration']}, Released: {playback['release_date']}"
+            )
 
-    return playback
+        return playback
+    except TypeError:
+        click.secho("Nothing is currently playing!", fg="red")
 
 
 def convert_ms(duration_ms: int) -> str:
