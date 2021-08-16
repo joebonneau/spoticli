@@ -162,32 +162,28 @@ def start_playback(ctx):
     help="collaborative or non-collaborative",
 )
 @click.option("-d", type=str, default="", help="playlist description")
-@click.argument("name", nargs=-1, required=True)
+@click.argument("name", required=True)
 @click.pass_obj
-def create_playlist(ctx, public, collaborative, description, name):
+def create_playlist(ctx, pub, c, d, name):
     """
     Creates a new playlist.
     """
 
     sp_auth = ctx
 
-    concat_name = " ".join(name)
-
-    if public == True and collaborative == True:
+    if pub == True and c == True:
         click.secho(style("Collaborative playlists can only be private.", fg="red"))
     else:
         try:
             sp_auth.user_playlist_create(
                 user=SPOTIFY_USER_ID,
-                name=concat_name,
-                public=public,
-                collaborative=collaborative,
-                description=description,
+                name=name,
+                public=pub,
+                collaborative=c,
+                description=d,
             )
 
-            click.secho(
-                style(f"Playlist '{concat_name}' created successfully!", fg="green")
-            )
+            click.secho(style(f"Playlist '{name}' created successfully!", fg="green"))
         except AttributeError:
             # AttributeError is thrown if authorization was unsuccessful, so show that error instead.
             pass
@@ -325,9 +321,9 @@ def toggle_shuffle(ctx, on):
         click.secho(str(e) + device_error_message, fg="red")
 
 
-@main.command("prsa")
+@main.command("rsa")
 @click.pass_obj
-def play_random_saved_album(ctx):
+def get_random_saved_album(ctx):
     """
     Fetches all albums in user library and selects one randomly.
     """
@@ -571,17 +567,15 @@ def recently_played(ctx, after):
                         type=Choice(("t", "a"), case_sensitive=False),
                         show_choices=True,
                     )
-                    action_type = click.prompt(
-                        "Add to queue or play now?",
-                        type=click.Choice(("q", "p"), case_sensitive=False),
-                        show_choices=True,
-                    )
-
-                    if action_type == "q":
+                    if task == "q":
                         if item_type == "t":
                             sp_auth.add_to_queue(recent_dict["track_uri"][i])
+                            click.secho(
+                                "Track successfully added to the queue.", fg="green"
+                            )
                         else:
                             add_album_to_queue(sp_auth, recent_dict["album_uri"][index])
+
                     else:
                         if item_type == "t":
                             sp_auth.start_playback(
@@ -696,7 +690,7 @@ def search(ctx, term, type_):
                     show_choices=True,
                 )
                 if action == "p":
-                    sp_auth.start_playback(context_uri=uris[index])
+                    sp_auth.start_playback(uris=[uris[index]])
                     sleep(0.5)
                     get_current_playback(sp_auth, display=True)
                 else:
@@ -745,34 +739,52 @@ def search(ctx, term, type_):
                         )
 
                     click.echo(tabulate(albums, headers="keys", tablefmt="github"))
-                    further_action = click.prompt(
-                        "Do you want to take further action?",
-                        type=Choice(("y", "n"), case_sensitive=False),
+                else:
+                    artist_tracks_res = sp_auth.artist_top_tracks(uris[index])
+                    top_tracks = []
+                    uris = []
+                    for i, track in enumerate(artist_tracks_res["tracks"]):
+                        top_tracks.append(
+                            {
+                                "index": i,
+                                "name": track["name"],
+                                "artists": get_artist_names(track["album"]),
+                                "popularity": track["popularity"],
+                            }
+                        )
+                        uris.append(track["uri"])
+                    click.echo(tabulate(top_tracks, headers="keys", tablefmt="github"))
+
+                further_action = click.prompt(
+                    "Do you want to take further action?",
+                    type=Choice(("y", "n"), case_sensitive=False),
+                    show_choices=True,
+                )
+                if further_action == "y":
+                    index = click.prompt(
+                        "Enter the index",
+                        type=Choice((str(num) for num in range(len(top_tracks)))),
+                        show_choices=False,
+                    )
+                    index = int(index)
+                    play_or_queue = click.prompt(
+                        "Play now or add to queue?",
+                        type=Choice(("p", "q"), case_sensitive=False),
                         show_choices=True,
                     )
-                    if further_action == "y":
-                        idx = click.prompt(
-                            "Enter the index",
-                            type=Choice((str(num) for num in range(len(albums)))),
-                            show_choices=False,
-                        )
-                        idx = int(idx)
-                        play_or_queue = click.prompt(
-                            "Do you want to play it now or add to queue?",
-                            type=Choice(("p", "q"), case_sensitive=False),
-                            show_choices=True,
-                        )
-                        if play_or_queue == "p":
-                            sp_auth.start_playback(context_uri=uris[idx])
-                        else:
-                            add_album_to_queue(sp_auth, uris[idx])
-                            click.secho(
-                                "Album successfully added to queue!", fg="green"
-                            )
+                    if play_or_queue == "p":
+                        sp_auth.start_playback(uris=[uris[index]])
                         sleep(0.5)
                         get_current_playback(sp_auth, display=True)
                     else:
-                        pass
+                        if album_or_track == "a":
+                            add_album_to_queue(sp_auth, uris[index])
+                        else:
+                            sp_auth.add_to_queue(uris[index])
+
+                        click.secho("Successfully added to queue!", fg="green")
+                else:
+                    pass
         else:
             pass
     except AttributeError:
