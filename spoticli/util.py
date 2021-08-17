@@ -6,6 +6,7 @@ import time
 import spotipy as sp
 import click
 from click.termui import style
+from tqdm import tqdm
 
 
 def add_playlist_to_queue(sp_auth, uri: str) -> None:
@@ -19,9 +20,8 @@ def add_playlist_to_queue(sp_auth, uri: str) -> None:
         playlists_res = sp_auth.playlist_items(
             uri, limit=100, fields="items.track.uri", offset=offset
         )
-        with click.progressbar(playlists_res["items"]) as items:
-            for item in items:
-                sp_auth.add_to_queue(item["track"]["uri"])
+        for item in tqdm(playlists_res["items"]):
+            sp_auth.add_to_queue(item["track"]["uri"])
         if len(playlists_res) < 100:
             break
 
@@ -37,9 +37,8 @@ def add_album_to_queue(sp_auth: sp.Spotify, uri: str) -> None:
 
     while True:
         tracks_res = sp_auth.album_tracks(uri, limit=50, offset=0)
-        with click.progressbar(tracks_res["items"]) as tracks:
-            for track in tracks:
-                sp_auth.add_to_queue(track["uri"])
+        for track in tqdm(tracks_res["items"]):
+            sp_auth.add_to_queue(track["uri"])
         if len(tracks_res) < 50:
             break
 
