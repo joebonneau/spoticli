@@ -7,5 +7,5 @@ install:
     - poetry add --dev codecov
     - poetry install
 script:
-    - poetry run black .
-    - poetry run mypy
+    - poetry run flake8
+    - poetry run mypy --install-types
