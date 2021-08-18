@@ -10,12 +10,48 @@ python = "^3.9"
 spotipy = "^2.18.0"
 click = "^8.0.1"
 tabulate = "^0.8.9"
+tqdm = "^4.62.1"
+types-tabulate = "^0.8.2"
 
 [tool.poetry.dev-dependencies]
 black = "^21.7b0"
+pytest = "^6.2.4"
+requests = "^2.26.0"
+flake8 = "^3.9.2"
+isort = "^5.9.3"
+mypy = "^0.910"
+pre-commit = "^2.14.0"
 
 [tool.poetry.scripts]
 spoticli = "spoticli:spoticli.main"
+
+[tool.isort]
+multi_line_output = 3
+include_trailing_comma = true
+force_grid_wrap = 0
+use_parentheses = true
+line_length = 88
+
+[tool.mypy]
+python_version = "3.9"
+files = "spoticli"
+ignore_missing_imports = true
+
+[tool.pytest]
+testpaths = "test"
+
+[tool.black]
+line_length = 88
+exclude = '''
+/(
+    \.git
+  | \.mypy_cache
+  | \.venv
+  | _build
+  | build
+  | dist
+)/
+'''
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
