@@ -1,29 +1,25 @@
-import random
 import os
+import random
 from time import sleep
-from pprint import pprint
-
-import spotipy as sp
-from spotipy.oauth2 import SpotifyOAuth, SpotifyOauthError
-from spotipy.client import SpotifyException
+from typing import Optional
 
 import click
-from click.types import Choice
+import spotipy as sp
 from click.termui import style
-
+from click.types import Choice
+from spotipy.client import SpotifyException
+from spotipy.oauth2 import SpotifyOAuth, SpotifyOauthError
 from tabulate import tabulate
 
 from spoticli.util import (
+    add_album_to_queue,
     convert_datetime,
     convert_timestamp,
-    convert_ms,
     get_artist_names,
     get_current_playback,
-    truncate,
-    add_album_to_queue,
-    add_playlist_to_queue,
+    search_parse,
+    search_proceed,
 )
-
 
 SPOTIFY_USER_ID = os.environ.get("SPOTIFY_USER_ID")
 SPOTIFY_CLIENT_ID = os.environ.get("SPOTIFY_CLIENT_ID")
@@ -49,10 +45,10 @@ device_error_message = " Try pressing play on the device that you want to contro
 @click.pass_context
 def main(
     ctx,
-    scope: str = STATE_STR,
-    client_id: str = SPOTIFY_CLIENT_ID,
-    client_secret: str = SPOTIFY_CLIENT_SECRET,
-    redirect_uri: str = SPOTIFY_REDIRECT_URI,
+    scope: Optional[str] = STATE_STR,
+    client_id: Optional[str] = SPOTIFY_CLIENT_ID,
+    client_secret: Optional[str] = SPOTIFY_CLIENT_SECRET,
+    redirect_uri: Optional[str] = SPOTIFY_REDIRECT_URI,
 ):
 
     try:
@@ -171,7 +167,7 @@ def create_playlist(ctx, pub, c, d, name):
 
     sp_auth = ctx
 
-    if pub == True and c == True:
+    if all((pub, c)):
         click.secho(style("Collaborative playlists can only be private.", fg="red"))
     else:
         try:
@@ -211,7 +207,7 @@ def seek(ctx, timestamp):
         pass
     except SpotifyException as e:
         click.secho(str(e) + device_error_message, fg="red")
-    except:
+    except ValueError:
         click.secho(
             style("Incorrect format: must be in minutes:seconds format", fg="red")
         )
@@ -443,15 +439,11 @@ def add_current_track_to_playlists(ctx):
                     )
 
                 click.secho(
-                    f"The track was successfully added to all specified playlists!"
+                    "The track was successfully added to all specified playlists!"
                 )
                 break
             except ValueError:
-                click.secho(f"Invalid input! Try again.", fg="red")
-            except:
-                click.secho(
-                    f"There was an issue adding the track to all specified playlists."
-                )
+                click.secho("Invalid input! Try again.", fg="red")
     except TypeError:
         click.secho("Nothing is currently playing!", fg="red")
     except AttributeError:
@@ -547,7 +539,7 @@ def recently_played(ctx, after):
                                     fg="green",
                                 )
                                 break
-                            except:
+                            except ValueError:
                                 click.secho(
                                     "Invalid input. Correct format is '0, 15'", fg="red"
                                 )
@@ -614,179 +606,8 @@ def search(ctx, term, type_):
     k = type_ + "s"
     try:
         search_res = sp_auth.search(q=term, limit=10, type=type_)
-        items = search_res[k]["items"]
-        uris = []
-        results = []
-        if k == "albums":
-            for i, item in enumerate(items):
-                artists = get_artist_names(item)
-                name = item["name"]
-                uris.append(item["uri"])
-                results.append(
-                    {
-                        "index": i,
-                        "artist(s)": truncate(artists),
-                        "album title": name,
-                        "release date": item["release_date"],
-                    }
-                )
-        elif k == "artists":
-            results = []
-            for i, item in enumerate(items):
-                results.append({"index": i, "artist": item["name"]})
-                uris.append(item["uri"])
-        elif k == "playlists":
-            results = []
-            for i, item in enumerate(items):
-                desc = item["description"]
-                uris.append(item["uri"])
-                results.append(
-                    {
-                        "index": i,
-                        "name": item["name"],
-                        "creator": item["owner"]["display_name"],
-                        "description": truncate(desc),
-                        "tracks": item["tracks"]["total"],
-                    }
-                )
-        elif k == "tracks":
-            results = []
-            uris = []
-            for i, item in enumerate(items):
-                artists = get_artist_names(item)
-                name = item["name"]
-                uris.append(item["uri"])
-                results.append(
-                    {
-                        "index": i,
-                        "name": name,
-                        "duration": convert_ms(item["duration_ms"]),
-                        "artist(s)": truncate(artists),
-                        "album title": item["album"]["name"],
-                        "release date": item["album"]["release_date"],
-                    }
-                )
-        click.secho(tabulate(results, headers="keys", tablefmt="github"))
-        proceed = click.prompt(
-            "Do you want to proceed with one of these items?",
-            type=Choice(("y", "n"), case_sensitive=False),
-            show_choices=True,
-        )
-        if proceed == "y":
-            if len(results) == 2:
-                index = 0
-            else:
-                index = click.prompt(
-                    "Enter the index",
-                    type=Choice((str(num) for num in range(len(results)))),
-                    show_choices=False,
-                )
-                index = int(index)
-
-            if type_ != "artist":
-                action = click.prompt(
-                    "Play now or add to queue?",
-                    type=Choice(("p", "q"), case_sensitive=False),
-                    show_choices=True,
-                )
-                if action == "p":
-                    sp_auth.start_playback(uris=[uris[index]])
-                    sleep(0.5)
-                    get_current_playback(sp_auth, display=True)
-                else:
-                    if type_ == "album":
-                        add_album_to_queue(sp_auth, uris[index])
-                    elif type_ == "playlist":
-                        confirmation = click.prompt(
-                            f"Are you sure you want to add all {results[index]['tracks']} tracks?",
-                            type=Choice(("y", "n"), case_sensitive=False),
-                            show_choices=True,
-                        )
-                        if confirmation == "y":
-                            add_playlist_to_queue(sp_auth, uris[index])
-                        else:
-                            click.secho("Operation aborted.", fg="red")
-                    elif type_ == "track":
-                        sp_auth.add_to_queue(uris[index])
-                        click.secho("Track added to queue successfully!", fg="green")
-            elif type_ == "artist":
-                album_or_track = click.prompt(
-                    "View artist albums or most popular tracks?",
-                    type=Choice(("a", "t"), case_sensitive=False),
-                    show_choices=True,
-                )
-                if album_or_track == "a":
-                    artist_albums_res = sp_auth.artist_albums(
-                        uris[index], album_type="album,single"
-                    )
-                    albums = []
-                    uris = []
-                    for i, item in enumerate(artist_albums_res["items"]):
-                        album_type = item["album_type"]
-                        artists = truncate(get_artist_names(item))
-                        album_name = item["name"]
-                        release_date = item["release_date"]
-                        total_tracks = item["total_tracks"]
-                        uris.append(item["uri"])
-                        albums.append(
-                            {
-                                "index": i,
-                                "album name": album_name,
-                                "album type": album_type,
-                                "tracks": total_tracks,
-                                "release date": release_date,
-                            }
-                        )
-
-                    click.echo(tabulate(albums, headers="keys", tablefmt="github"))
-                else:
-                    artist_tracks_res = sp_auth.artist_top_tracks(uris[index])
-                    top_tracks = []
-                    uris = []
-                    for i, track in enumerate(artist_tracks_res["tracks"]):
-                        top_tracks.append(
-                            {
-                                "index": i,
-                                "name": track["name"],
-                                "artists": get_artist_names(track["album"]),
-                                "popularity": track["popularity"],
-                            }
-                        )
-                        uris.append(track["uri"])
-                    click.echo(tabulate(top_tracks, headers="keys", tablefmt="github"))
-
-                further_action = click.prompt(
-                    "Do you want to take further action?",
-                    type=Choice(("y", "n"), case_sensitive=False),
-                    show_choices=True,
-                )
-                if further_action == "y":
-                    index = click.prompt(
-                        "Enter the index",
-                        type=Choice((str(num) for num in range(len(top_tracks)))),
-                        show_choices=False,
-                    )
-                    index = int(index)
-                    play_or_queue = click.prompt(
-                        "Play now or add to queue?",
-                        type=Choice(("p", "q"), case_sensitive=False),
-                        show_choices=True,
-                    )
-                    if play_or_queue == "p":
-                        sp_auth.start_playback(uris=[uris[index]])
-                        sleep(0.5)
-                        get_current_playback(sp_auth, display=True)
-                    else:
-                        if album_or_track == "a":
-                            add_album_to_queue(sp_auth, uris[index])
-                        else:
-                            sp_auth.add_to_queue(uris[index])
-
-                        click.secho("Successfully added to queue!", fg="green")
-                else:
-                    pass
-        else:
-            pass
+        results, uris = search_parse(search_res, k)
+        search_proceed(sp_auth, type_, results, uris)
     except AttributeError:
         pass
     except SpotifyException as e:
