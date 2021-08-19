@@ -9,4 +9,4 @@ install:
 script:
     - poetry run flake8
     - poetry run mypy --install-types
-    - poetry run pytest
+    - poetry run pytest --verbose
