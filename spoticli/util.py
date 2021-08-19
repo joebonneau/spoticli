@@ -4,9 +4,9 @@ from time import sleep
 from typing import Any
 
 import click
-import spotipy as sp
 from click.termui import style
 from click.types import Choice
+from spotipy.client import Spotify
 from tabulate import tabulate
 from tqdm import tqdm
 
@@ -32,7 +32,7 @@ def add_playlist_to_queue(sp_auth, uri: str) -> None:
     click.secho("All playlist tracks added successfully!", fg="green")
 
 
-def add_album_to_queue(sp_auth: sp.Spotify, uri: str) -> None:
+def add_album_to_queue(sp_auth: Spotify, uri: str) -> None:
     """
     Adds all tracks of an album to the queue.
     """
@@ -60,15 +60,14 @@ def get_artist_names(res: dict[str, Any]) -> str:
     return artists_str
 
 
-def get_current_playback(sp_auth: sp.Spotify, display: bool) -> dict:
+def get_current_playback(res: dict[str, Any], display: bool) -> dict:
     """
     Retrieves current playback information, parses the json response, and optionally displays
     information about the current playback.
     """
 
     try:
-        current_playback = sp_auth.current_playback()
-        playback_items = current_playback["item"]
+        playback_items = res["item"]
         playback = {}
 
         artists_str = get_artist_names(playback_items["album"])
@@ -81,8 +80,8 @@ def get_current_playback(sp_auth: sp.Spotify, display: bool) -> dict:
         playback["album_uri"] = playback_items["album"]["uri"]
         playback["release_date"] = playback_items["album"]["release_date"]
         playback["duration"] = convert_ms(playback_items["duration_ms"])
-        playback["volume"] = current_playback["device"]["volume_percent"]
-        playback["shuffle_state"] = current_playback["shuffle_state"]
+        playback["volume"] = res["device"]["volume_percent"]
+        playback["shuffle_state"] = res["shuffle_state"]
 
         if display:
             track_name = style(playback["track_name"], fg="magenta")
@@ -161,7 +160,7 @@ def search_parse(res: dict[str, Any], k: str) -> tuple[list[dict[str, Any]], lis
 
 
 def search_proceed(
-    sp_auth: sp.Spotify, type_: str, results: list[dict[str, Any]], uris: list[str]
+    sp_auth: Spotify, type_: str, results: list[dict[str, Any]], uris: list[str]
 ) -> None:
 
     click.secho(tabulate(results, headers="keys", tablefmt="github"))

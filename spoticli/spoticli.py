@@ -83,7 +83,8 @@ def previous_track(ctx):
         sp_auth.previous_track()
         # delay to prevent fetching current playback before it updates on server side.
         sleep(0.1)
-        get_current_playback(sp_auth=sp_auth, display=True)
+        current_playback = sp_auth.current_playback()
+        get_current_playback(res=current_playback, display=True)
     except AttributeError:
         # AttributeError is thrown if authorization was unsuccessful, so show that error instead.
         pass
@@ -103,7 +104,8 @@ def next_track(ctx):
         sp_auth.next_track()
         # delay to prevent fetching current playback before it updates on server side.
         sleep(0.1)
-        get_current_playback(sp_auth=sp_auth, display=True)
+        current_playback = sp_auth.current_playback()
+        get_current_playback(res=current_playback, display=True)
     except AttributeError:
         # AttributeError is thrown if authorization was unsuccessful, so show that error instead.
         pass
@@ -142,7 +144,8 @@ def start_playback(ctx):
         sp_auth.start_playback()
 
         click.secho("Playback resumed.")
-        get_current_playback(sp_auth=sp_auth, display=True)
+        current_playback = sp_auth.current_playback()
+        get_current_playback(res=current_playback, display=True)
     except AttributeError:
         # AttributeError is thrown if authorization was unsuccessful, so show that error instead.
         pass
@@ -224,7 +227,8 @@ def increase_volume(ctx, amount):
     sp_auth = ctx
 
     try:
-        playback_info = get_current_playback(sp_auth=sp_auth, display=False)
+        current_playback = sp_auth.current_playback()
+        playback_info = get_current_playback(res=current_playback, display=False)
         previous_volume = playback_info["volume"]
 
         new_volume = int(round(previous_volume + amount, 0))
@@ -251,7 +255,8 @@ def decrease_volume(ctx, amount):
     sp_auth = ctx
 
     try:
-        playback_info = get_current_playback(sp_auth=sp_auth, display=False)
+        current_playback = sp_auth.current_playback()
+        playback_info = get_current_playback(res=current_playback, display=False)
         previous_volume = playback_info["volume"]
 
         new_volume = int(round(previous_volume - amount, 0))
@@ -278,7 +283,8 @@ def now_playing(ctx, verbose):
     sp_auth = ctx
 
     try:
-        playback = get_current_playback(sp_auth=sp_auth, display=True)
+        current_playback = sp_auth.current_playback()
+        playback = get_current_playback(res=current_playback, display=True)
 
         if verbose:
             audio_features = sp_auth.audio_features(playback["track_uri"])
@@ -384,7 +390,8 @@ def get_random_saved_album(ctx):
             else:
                 sp_auth.start_playback(context_uri=saved_albums[rand_i]["album_uri"])
                 sleep(0.5)
-                get_current_playback(sp_auth, display=True)
+                current_playback = sp_auth.current_playback()
+                get_current_playback(res=current_playback, display=True)
                 break
     except AttributeError:
         # AttributeError is thrown if authorization was unsuccessful, so show that error instead.
@@ -403,7 +410,8 @@ def add_current_track_to_playlists(ctx):
     sp_auth = ctx
 
     try:
-        playback = get_current_playback(sp_auth=sp_auth, display=True)
+        current_playback = sp_auth.current_playback()
+        playback = get_current_playback(res=current_playback, display=True)
 
         playlist_res = sp_auth.current_user_playlists(limit=20)
         positions = []

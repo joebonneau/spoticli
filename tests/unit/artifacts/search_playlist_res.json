@@ -1,0 +1,442 @@
+{
+    "playlists": {
+        "href": "https://api.spotify.com/v1/search?query=groovin%27&type=playlist&offset=0&limit=10",
+        "items": [
+            {
+                "collaborative": false,
+                "description": "",
+                "external_urls": {
+                    "spotify": "https://open.spotify.com/playlist/0oQE11XvrxWXK2a4CVRN3q"
+                },
+                "href": "https://api.spotify.com/v1/playlists/0oQE11XvrxWXK2a4CVRN3q",
+                "id": "0oQE11XvrxWXK2a4CVRN3q",
+                "images": [
+                    {
+                        "height": 640,
+                        "url": "https://mosaic.scdn.co/640/ab67616d0000b2730e85273ce00b5685c752be63ab67616d0000b27368812421f8bfea9aa0420234ab67616d0000b2737a4096b924e71135e7fcc6b5ab67616d0000b273a4d5a023a1e166e8b3ee3085",
+                        "width": 640
+                    },
+                    {
+                        "height": 300,
+                        "url": "https://mosaic.scdn.co/300/ab67616d0000b2730e85273ce00b5685c752be63ab67616d0000b27368812421f8bfea9aa0420234ab67616d0000b2737a4096b924e71135e7fcc6b5ab67616d0000b273a4d5a023a1e166e8b3ee3085",
+                        "width": 300
+                    },
+                    {
+                        "height": 60,
+                        "url": "https://mosaic.scdn.co/60/ab67616d0000b2730e85273ce00b5685c752be63ab67616d0000b27368812421f8bfea9aa0420234ab67616d0000b2737a4096b924e71135e7fcc6b5ab67616d0000b273a4d5a023a1e166e8b3ee3085",
+                        "width": 60
+                    }
+                ],
+                "name": "Groovin', Pt. 1 (2020)",
+                "owner": {
+                    "display_name": "Soul Dialect",
+                    "external_urls": {
+                        "spotify": "https://open.spotify.com/user/hp5s41fd8dkrl0mi77gwptmco"
+                    },
+                    "href": "https://api.spotify.com/v1/users/hp5s41fd8dkrl0mi77gwptmco",
+                    "id": "hp5s41fd8dkrl0mi77gwptmco",
+                    "type": "user",
+                    "uri": "spotify:user:hp5s41fd8dkrl0mi77gwptmco"
+                },
+                "primary_color": null,
+                "public": null,
+                "snapshot_id": "MjMsYzliNDc2OWZlYTQ1YWQ5ZWI0MThjOGUzNzEzYTQ5NjY0ZTg5YzBiNg==",
+                "tracks": {
+                    "href": "https://api.spotify.com/v1/playlists/0oQE11XvrxWXK2a4CVRN3q/tracks",
+                    "total": 18
+                },
+                "type": "playlist",
+                "uri": "spotify:playlist:0oQE11XvrxWXK2a4CVRN3q"
+            },
+            {
+                "collaborative": false,
+                "description": "",
+                "external_urls": {
+                    "spotify": "https://open.spotify.com/playlist/4ATaA5T1ZUmY1fzJyMBr3P"
+                },
+                "href": "https://api.spotify.com/v1/playlists/4ATaA5T1ZUmY1fzJyMBr3P",
+                "id": "4ATaA5T1ZUmY1fzJyMBr3P",
+                "images": [
+                    {
+                        "height": 640,
+                        "url": "https://mosaic.scdn.co/640/ab67616d0000b2731afbf5116eb2742ef80d1867ab67616d0000b27320bbceac6950d3fe13fa13c3ab67616d0000b2733f29a976eea00141514ab936ab67616d0000b273f22514855a9a8356664340fb",
+                        "width": 640
+                    },
+                    {
+                        "height": 300,
+                        "url": "https://mosaic.scdn.co/300/ab67616d0000b2731afbf5116eb2742ef80d1867ab67616d0000b27320bbceac6950d3fe13fa13c3ab67616d0000b2733f29a976eea00141514ab936ab67616d0000b273f22514855a9a8356664340fb",
+                        "width": 300
+                    },
+                    {
+                        "height": 60,
+                        "url": "https://mosaic.scdn.co/60/ab67616d0000b2731afbf5116eb2742ef80d1867ab67616d0000b27320bbceac6950d3fe13fa13c3ab67616d0000b2733f29a976eea00141514ab936ab67616d0000b273f22514855a9a8356664340fb",
+                        "width": 60
+                    }
+                ],
+                "name": "Groovin on a Sunday Afternoon",
+                "owner": {
+                    "display_name": "Devon Paige",
+                    "external_urls": {
+                        "spotify": "https://open.spotify.com/user/1210567485"
+                    },
+                    "href": "https://api.spotify.com/v1/users/1210567485",
+                    "id": "1210567485",
+                    "type": "user",
+                    "uri": "spotify:user:1210567485"
+                },
+                "primary_color": null,
+                "public": null,
+                "snapshot_id": "NzExLDdlMjhiOTAwYzhjNzQ5OTJmMDZhMTM2NDcwMTMyODg5ZDFhYmM0NTE=",
+                "tracks": {
+                    "href": "https://api.spotify.com/v1/playlists/4ATaA5T1ZUmY1fzJyMBr3P/tracks",
+                    "total": 635
+                },
+                "type": "playlist",
+                "uri": "spotify:playlist:4ATaA5T1ZUmY1fzJyMBr3P"
+            },
+            {
+                "collaborative": false,
+                "description": "R&B\u306e\u6700\u65b0\u8a71\u984c\u66f2\u3092\u307e\u3068\u3081\u3066\u304a\u5c4a\u3051\u3057\u307e\u3059\u3002cover: \u30c6\u30a3\u30ca\u30fc\u30b7\u30a7",
+                "external_urls": {
+                    "spotify": "https://open.spotify.com/playlist/37i9dQZF1DX4CB6zI8FWXS"
+                },
+                "href": "https://api.spotify.com/v1/playlists/37i9dQZF1DX4CB6zI8FWXS",
+                "id": "37i9dQZF1DX4CB6zI8FWXS",
+                "images": [
+                    {
+                        "height": null,
+                        "url": "https://i.scdn.co/image/ab67706f000000038c7819280c35d51eda482ec8",
+                        "width": null
+                    }
+                ],
+                "name": "Groovin' R&B",
+                "owner": {
+                    "display_name": "Spotify",
+                    "external_urls": {
+                        "spotify": "https://open.spotify.com/user/spotify"
+                    },
+                    "href": "https://api.spotify.com/v1/users/spotify",
+                    "id": "spotify",
+                    "type": "user",
+                    "uri": "spotify:user:spotify"
+                },
+                "primary_color": null,
+                "public": null,
+                "snapshot_id": "MTYyODc4MDQwMCwwMDAwMDE5ZDAwMDAwMTdiM2FlMDhlMjkwMDAwMDE3YjE0MjY0MWNh",
+                "tracks": {
+                    "href": "https://api.spotify.com/v1/playlists/37i9dQZF1DX4CB6zI8FWXS/tracks",
+                    "total": 60
+                },
+                "type": "playlist",
+                "uri": "spotify:playlist:37i9dQZF1DX4CB6zI8FWXS"
+            },
+            {
+                "collaborative": false,
+                "description": "",
+                "external_urls": {
+                    "spotify": "https://open.spotify.com/playlist/1qQFW19QP5LqZFSeJtl0NH"
+                },
+                "href": "https://api.spotify.com/v1/playlists/1qQFW19QP5LqZFSeJtl0NH",
+                "id": "1qQFW19QP5LqZFSeJtl0NH",
+                "images": [
+                    {
+                        "height": 640,
+                        "url": "https://mosaic.scdn.co/640/ab67616d0000b273011aa86d7b4307e90c9bb48aab67616d0000b273034d93478d053f6a5415972aab67616d0000b273a0f168a782e022c021a75bd6ab67616d0000b273d6ea0bb5dadbb83440479dfd",
+                        "width": 640
+                    },
+                    {
+                        "height": 300,
+                        "url": "https://mosaic.scdn.co/300/ab67616d0000b273011aa86d7b4307e90c9bb48aab67616d0000b273034d93478d053f6a5415972aab67616d0000b273a0f168a782e022c021a75bd6ab67616d0000b273d6ea0bb5dadbb83440479dfd",
+                        "width": 300
+                    },
+                    {
+                        "height": 60,
+                        "url": "https://mosaic.scdn.co/60/ab67616d0000b273011aa86d7b4307e90c9bb48aab67616d0000b273034d93478d053f6a5415972aab67616d0000b273a0f168a782e022c021a75bd6ab67616d0000b273d6ea0bb5dadbb83440479dfd",
+                        "width": 60
+                    }
+                ],
+                "name": "Groovin', Pt. 2 (2020)",
+                "owner": {
+                    "display_name": "Soul Dialect",
+                    "external_urls": {
+                        "spotify": "https://open.spotify.com/user/hp5s41fd8dkrl0mi77gwptmco"
+                    },
+                    "href": "https://api.spotify.com/v1/users/hp5s41fd8dkrl0mi77gwptmco",
+                    "id": "hp5s41fd8dkrl0mi77gwptmco",
+                    "type": "user",
+                    "uri": "spotify:user:hp5s41fd8dkrl0mi77gwptmco"
+                },
+                "primary_color": null,
+                "public": null,
+                "snapshot_id": "MTE2LGQ5NjU4NDNhN2NlY2QwMzgyZGZmNmNjMTcyNDEyOTdiZTM3NjJjZmI=",
+                "tracks": {
+                    "href": "https://api.spotify.com/v1/playlists/1qQFW19QP5LqZFSeJtl0NH/tracks",
+                    "total": 93
+                },
+                "type": "playlist",
+                "uri": "spotify:playlist:1qQFW19QP5LqZFSeJtl0NH"
+            },
+            {
+                "collaborative": false,
+                "description": "Grooving Tunes to get you through the weekend! Featuring Alok, Vintage Culture, MEDUZA, Becky Hill, 220 Kid, Imanbek, MNEK and many many more. Weekly updated",
+                "external_urls": {
+                    "spotify": "https://open.spotify.com/playlist/1W0lsTd8R0WbmnZg3rQmcg"
+                },
+                "href": "https://api.spotify.com/v1/playlists/1W0lsTd8R0WbmnZg3rQmcg",
+                "id": "1W0lsTd8R0WbmnZg3rQmcg",
+                "images": [
+                    {
+                        "height": null,
+                        "url": "https://i.scdn.co/image/ab67706c0000bebb60d519786f4cbb8f88b44952",
+                        "width": null
+                    }
+                ],
+                "name": "Grooving Tunes",
+                "owner": {
+                    "display_name": "Romain Sylvian",
+                    "external_urls": {
+                        "spotify": "https://open.spotify.com/user/v920n9zja77mb9zebqlxokm77"
+                    },
+                    "href": "https://api.spotify.com/v1/users/v920n9zja77mb9zebqlxokm77",
+                    "id": "v920n9zja77mb9zebqlxokm77",
+                    "type": "user",
+                    "uri": "spotify:user:v920n9zja77mb9zebqlxokm77"
+                },
+                "primary_color": null,
+                "public": null,
+                "snapshot_id": "MTIwOCw3YjMxOTVkNjFlODE5OWRmMDc3OTU5MzAzZTRjNDhjZTVmMjUwYWI3",
+                "tracks": {
+                    "href": "https://api.spotify.com/v1/playlists/1W0lsTd8R0WbmnZg3rQmcg/tracks",
+                    "total": 154
+                },
+                "type": "playlist",
+                "uri": "spotify:playlist:1W0lsTd8R0WbmnZg3rQmcg"
+            },
+            {
+                "collaborative": false,
+                "description": "The greatest old school jams. Cruise down the virtual city streets in style.",
+                "external_urls": {
+                    "spotify": "https://open.spotify.com/playlist/6y5ldR0UFhVs1lqWhy6Pva"
+                },
+                "href": "https://api.spotify.com/v1/playlists/6y5ldR0UFhVs1lqWhy6Pva",
+                "id": "6y5ldR0UFhVs1lqWhy6Pva",
+                "images": [
+                    {
+                        "height": null,
+                        "url": "https://i.scdn.co/image/ab67706c0000bebb24aaabc3c60a70de11edbb18",
+                        "width": null
+                    }
+                ],
+                "name": "Cruise And Play: Groovin' Soul Classics",
+                "owner": {
+                    "display_name": "PlayStation\u00ae\ufe0f",
+                    "external_urls": {
+                        "spotify": "https://open.spotify.com/user/playstation_music"
+                    },
+                    "href": "https://api.spotify.com/v1/users/playstation_music",
+                    "id": "playstation_music",
+                    "type": "user",
+                    "uri": "spotify:user:playstation_music"
+                },
+                "primary_color": null,
+                "public": null,
+                "snapshot_id": "MjU0LDdiNzZhMWM0Y2UwMmRlZjUyODVjYzEwM2ZjY2I0MWMwOTVlZjI2OWE=",
+                "tracks": {
+                    "href": "https://api.spotify.com/v1/playlists/6y5ldR0UFhVs1lqWhy6Pva/tracks",
+                    "total": 201
+                },
+                "type": "playlist",
+                "uri": "spotify:playlist:6y5ldR0UFhVs1lqWhy6Pva"
+            },
+            {
+                "collaborative": false,
+                "description": "",
+                "external_urls": {
+                    "spotify": "https://open.spotify.com/playlist/2mkeaNza52gcLpg5YrW9bg"
+                },
+                "href": "https://api.spotify.com/v1/playlists/2mkeaNza52gcLpg5YrW9bg",
+                "id": "2mkeaNza52gcLpg5YrW9bg",
+                "images": [
+                    {
+                        "height": 640,
+                        "url": "https://mosaic.scdn.co/640/ab67616d0000b2730af09744363c3621fa870ef2ab67616d0000b2732873370cfa1445bbe237ed0dab67616d0000b2733414ea69249376598e7d1700ab67616d0000b2738f2b83c50d3e618b840c7df7",
+                        "width": 640
+                    },
+                    {
+                        "height": 300,
+                        "url": "https://mosaic.scdn.co/300/ab67616d0000b2730af09744363c3621fa870ef2ab67616d0000b2732873370cfa1445bbe237ed0dab67616d0000b2733414ea69249376598e7d1700ab67616d0000b2738f2b83c50d3e618b840c7df7",
+                        "width": 300
+                    },
+                    {
+                        "height": 60,
+                        "url": "https://mosaic.scdn.co/60/ab67616d0000b2730af09744363c3621fa870ef2ab67616d0000b2732873370cfa1445bbe237ed0dab67616d0000b2733414ea69249376598e7d1700ab67616d0000b2738f2b83c50d3e618b840c7df7",
+                        "width": 60
+                    }
+                ],
+                "name": "Kenny Rankin - Groovin' \u2013 Desconocidos",
+                "owner": {
+                    "display_name": "Acarlosbriones",
+                    "external_urls": {
+                        "spotify": "https://open.spotify.com/user/2u3q8ubzt9rmvemj1w7pst0e0"
+                    },
+                    "href": "https://api.spotify.com/v1/users/2u3q8ubzt9rmvemj1w7pst0e0",
+                    "id": "2u3q8ubzt9rmvemj1w7pst0e0",
+                    "type": "user",
+                    "uri": "spotify:user:2u3q8ubzt9rmvemj1w7pst0e0"
+                },
+                "primary_color": null,
+                "public": null,
+                "snapshot_id": "MzgsY2EyNDQ3MTFlY2MzOTRkN2MwYmQ3MGYyMDJhM2VlMmZlZmZkMDY0Nw==",
+                "tracks": {
+                    "href": "https://api.spotify.com/v1/playlists/2mkeaNza52gcLpg5YrW9bg/tracks",
+                    "total": 37
+                },
+                "type": "playlist",
+                "uri": "spotify:playlist:2mkeaNza52gcLpg5YrW9bg"
+            },
+            {
+                "collaborative": false,
+                "description": "",
+                "external_urls": {
+                    "spotify": "https://open.spotify.com/playlist/2EKsFAissZHtRZkSv3oa7H"
+                },
+                "href": "https://api.spotify.com/v1/playlists/2EKsFAissZHtRZkSv3oa7H",
+                "id": "2EKsFAissZHtRZkSv3oa7H",
+                "images": [
+                    {
+                        "height": 640,
+                        "url": "https://mosaic.scdn.co/640/ab67616d0000b2732a68a9f1f96cd79013c9b1cdab67616d0000b273610cfe305bfcfe22f0cbbf46ab67616d0000b2736df212f2d0c2e8a1c9f94db5ab67616d0000b273a0f168a782e022c021a75bd6",
+                        "width": 640
+                    },
+                    {
+                        "height": 300,
+                        "url": "https://mosaic.scdn.co/300/ab67616d0000b2732a68a9f1f96cd79013c9b1cdab67616d0000b273610cfe305bfcfe22f0cbbf46ab67616d0000b2736df212f2d0c2e8a1c9f94db5ab67616d0000b273a0f168a782e022c021a75bd6",
+                        "width": 300
+                    },
+                    {
+                        "height": 60,
+                        "url": "https://mosaic.scdn.co/60/ab67616d0000b2732a68a9f1f96cd79013c9b1cdab67616d0000b273610cfe305bfcfe22f0cbbf46ab67616d0000b2736df212f2d0c2e8a1c9f94db5ab67616d0000b273a0f168a782e022c021a75bd6",
+                        "width": 60
+                    }
+                ],
+                "name": "Groovin', Pt. 2 - Proto",
+                "owner": {
+                    "display_name": "Soul Dialect",
+                    "external_urls": {
+                        "spotify": "https://open.spotify.com/user/hp5s41fd8dkrl0mi77gwptmco"
+                    },
+                    "href": "https://api.spotify.com/v1/users/hp5s41fd8dkrl0mi77gwptmco",
+                    "id": "hp5s41fd8dkrl0mi77gwptmco",
+                    "type": "user",
+                    "uri": "spotify:user:hp5s41fd8dkrl0mi77gwptmco"
+                },
+                "primary_color": null,
+                "public": null,
+                "snapshot_id": "NCxmNWU4MjFjODI1YTQzMTAzOGI2YmYzYWM4ZGQwZWMyY2VjN2YxODQy",
+                "tracks": {
+                    "href": "https://api.spotify.com/v1/playlists/2EKsFAissZHtRZkSv3oa7H/tracks",
+                    "total": 90
+                },
+                "type": "playlist",
+                "uri": "spotify:playlist:2EKsFAissZHtRZkSv3oa7H"
+            },
+            {
+                "collaborative": false,
+                "description": "",
+                "external_urls": {
+                    "spotify": "https://open.spotify.com/playlist/0J1euUuaGror5gPvQ8UIyY"
+                },
+                "href": "https://api.spotify.com/v1/playlists/0J1euUuaGror5gPvQ8UIyY",
+                "id": "0J1euUuaGror5gPvQ8UIyY",
+                "images": [
+                    {
+                        "height": 640,
+                        "url": "https://mosaic.scdn.co/640/ab67616d0000b273335c1ce5a8f550cdf372b376ab67616d0000b2734c585fe9ad0d783c8ac5a1c2ab67616d0000b2737027294551db4fda68b5ddacab67616d0000b273c3039c58c11d95bfccfe2632",
+                        "width": 640
+                    },
+                    {
+                        "height": 300,
+                        "url": "https://mosaic.scdn.co/300/ab67616d0000b273335c1ce5a8f550cdf372b376ab67616d0000b2734c585fe9ad0d783c8ac5a1c2ab67616d0000b2737027294551db4fda68b5ddacab67616d0000b273c3039c58c11d95bfccfe2632",
+                        "width": 300
+                    },
+                    {
+                        "height": 60,
+                        "url": "https://mosaic.scdn.co/60/ab67616d0000b273335c1ce5a8f550cdf372b376ab67616d0000b2734c585fe9ad0d783c8ac5a1c2ab67616d0000b2737027294551db4fda68b5ddacab67616d0000b273c3039c58c11d95bfccfe2632",
+                        "width": 60
+                    }
+                ],
+                "name": "Groovin' ",
+                "owner": {
+                    "display_name": "Carter NG",
+                    "external_urls": {
+                        "spotify": "https://open.spotify.com/user/1283338181"
+                    },
+                    "href": "https://api.spotify.com/v1/users/1283338181",
+                    "id": "1283338181",
+                    "type": "user",
+                    "uri": "spotify:user:1283338181"
+                },
+                "primary_color": null,
+                "public": null,
+                "snapshot_id": "OTIzLGRjNTdlMTA3NDRhMmYwYWEyYjBjNjUyMTQxN2FmYWU0MjhkOTY4Yjc=",
+                "tracks": {
+                    "href": "https://api.spotify.com/v1/playlists/0J1euUuaGror5gPvQ8UIyY/tracks",
+                    "total": 186
+                },
+                "type": "playlist",
+                "uri": "spotify:playlist:0J1euUuaGror5gPvQ8UIyY"
+            },
+            {
+                "collaborative": false,
+                "description": "",
+                "external_urls": {
+                    "spotify": "https://open.spotify.com/playlist/5SmXvDdhGY7VOQNrMMZqRq"
+                },
+                "href": "https://api.spotify.com/v1/playlists/5SmXvDdhGY7VOQNrMMZqRq",
+                "id": "5SmXvDdhGY7VOQNrMMZqRq",
+                "images": [
+                    {
+                        "height": 640,
+                        "url": "https://mosaic.scdn.co/640/ab67616d0000b2734ca73e4b0a463154d96750bfab67616d0000b273a424ae3e402d83eb55c2a3e8ab67616d0000b273cc5b34cc7f6f0d8c9054a6b5ab67616d0000b273f75f9f7cb6c34cf6c3d270b1",
+                        "width": 640
+                    },
+                    {
+                        "height": 300,
+                        "url": "https://mosaic.scdn.co/300/ab67616d0000b2734ca73e4b0a463154d96750bfab67616d0000b273a424ae3e402d83eb55c2a3e8ab67616d0000b273cc5b34cc7f6f0d8c9054a6b5ab67616d0000b273f75f9f7cb6c34cf6c3d270b1",
+                        "width": 300
+                    },
+                    {
+                        "height": 60,
+                        "url": "https://mosaic.scdn.co/60/ab67616d0000b2734ca73e4b0a463154d96750bfab67616d0000b273a424ae3e402d83eb55c2a3e8ab67616d0000b273cc5b34cc7f6f0d8c9054a6b5ab67616d0000b273f75f9f7cb6c34cf6c3d270b1",
+                        "width": 60
+                    }
+                ],
+                "name": "Groovin', Pt. 3 (2020)",
+                "owner": {
+                    "display_name": "Soul Dialect",
+                    "external_urls": {
+                        "spotify": "https://open.spotify.com/user/hp5s41fd8dkrl0mi77gwptmco"
+                    },
+                    "href": "https://api.spotify.com/v1/users/hp5s41fd8dkrl0mi77gwptmco",
+                    "id": "hp5s41fd8dkrl0mi77gwptmco",
+                    "type": "user",
+                    "uri": "spotify:user:hp5s41fd8dkrl0mi77gwptmco"
+                },
+                "primary_color": null,
+                "public": null,
+                "snapshot_id": "OTUsYWZlNTI3M2I2ZjJiYmY4ZTYxMTNhNGJkOTEzNjlkNjgzNDE4ZjRjYw==",
+                "tracks": {
+                    "href": "https://api.spotify.com/v1/playlists/5SmXvDdhGY7VOQNrMMZqRq/tracks",
+                    "total": 80
+                },
+                "type": "playlist",
+                "uri": "spotify:playlist:5SmXvDdhGY7VOQNrMMZqRq"
+            }
+        ],
+        "limit": 10,
+        "next": "https://api.spotify.com/v1/search?query=groovin%27&type=playlist&offset=10&limit=10",
+        "offset": 0,
+        "previous": null,
+        "total": 27428
+    }
+}
