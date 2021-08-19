@@ -1,7 +1,7 @@
 import time
 from datetime import datetime
 from time import sleep
-from typing import Any
+from typing import Any, Optional
 
 import click
 from click.termui import style
@@ -11,7 +11,7 @@ from tabulate import tabulate
 from tqdm import tqdm
 
 
-def add_playlist_to_queue(sp_auth, uri: str) -> None:
+def add_playlist_to_queue(sp_auth, uri: str, device: Optional[str]) -> None:
     """
     Adds all tracks from a playlist to the queue.
     """
@@ -23,7 +23,7 @@ def add_playlist_to_queue(sp_auth, uri: str) -> None:
             uri, limit=100, fields="items.track.uri", offset=offset
         )
         for item in tqdm(playlists_res["items"]):
-            sp_auth.add_to_queue(item["track"]["uri"])
+            sp_auth.add_to_queue(item["track"]["uri"], device_id=device)
         if len(playlists_res) < 100:
             break
 
@@ -32,7 +32,7 @@ def add_playlist_to_queue(sp_auth, uri: str) -> None:
     click.secho("All playlist tracks added successfully!", fg="green")
 
 
-def add_album_to_queue(sp_auth: Spotify, uri: str) -> None:
+def add_album_to_queue(sp_auth: Spotify, uri: str, device: Optional[str]) -> None:
     """
     Adds all tracks of an album to the queue.
     """
@@ -40,7 +40,7 @@ def add_album_to_queue(sp_auth: Spotify, uri: str) -> None:
     while True:
         tracks_res = sp_auth.album_tracks(uri, limit=50, offset=0)
         for track in tqdm(tracks_res["items"]):
-            sp_auth.add_to_queue(track["uri"])
+            sp_auth.add_to_queue(track["uri"], device_id=device)
         if len(tracks_res) < 50:
             break
 
@@ -60,7 +60,7 @@ def get_artist_names(res: dict[str, Any]) -> str:
     return artists_str
 
 
-def get_current_playback(res: dict[str, Any], display: bool) -> dict:
+def get_current_playback(res: dict[str, Any], display: bool) -> dict:  # type: ignore
     """
     Retrieves current playback information, parses the json response, and optionally displays
     information about the current playback.
@@ -95,10 +95,10 @@ def get_current_playback(res: dict[str, Any], display: bool) -> dict:
             click.echo(
                 f"Duration: {playback['duration']}, Released: {playback['release_date']}"
             )
+
+        return playback
     except TypeError:
         click.secho("Nothing is currently playing!", fg="red")
-
-    return playback
 
 
 def search_parse(res: dict[str, Any], k: str) -> tuple[list[dict[str, Any]], list[str]]:
@@ -160,7 +160,11 @@ def search_parse(res: dict[str, Any], k: str) -> tuple[list[dict[str, Any]], lis
 
 
 def search_proceed(
-    sp_auth: Spotify, type_: str, results: list[dict[str, Any]], uris: list[str]
+    sp_auth: Spotify,
+    type_: str,
+    results: list[dict[str, Any]],
+    uris: list[str],
+    device: Optional[str],
 ) -> None:
 
     click.secho(tabulate(results, headers="keys", tablefmt="github"))
@@ -185,12 +189,12 @@ def search_proceed(
                 show_choices=True,
             )
             if action == "p":
-                sp_auth.start_playback(uris=[uris[index]])
+                sp_auth.start_playback(uris=[uris[index]], device_id=device)
                 sleep(0.5)
                 get_current_playback(sp_auth, display=True)
             else:
                 if type_ == "album":
-                    add_album_to_queue(sp_auth, uris[index])
+                    add_album_to_queue(sp_auth, uris[index], device=device)
                 elif type_ == "playlist":
                     confirmation = click.prompt(
                         f"Are you sure you want to add all {results[index]['tracks']} tracks?",
@@ -198,11 +202,11 @@ def search_proceed(
                         show_choices=True,
                     )
                     if confirmation == "y":
-                        add_playlist_to_queue(sp_auth, uris[index])
+                        add_playlist_to_queue(sp_auth, uris[index], device=device)
                     else:
                         click.secho("Operation aborted.", fg="red")
                 elif type_ == "track":
-                    sp_auth.add_to_queue(uris[index])
+                    sp_auth.add_to_queue(uris[index], device_id=device)
                     click.secho("Track added to queue successfully!", fg="green")
         elif type_ == "artist":
             album_or_track = click.prompt(
@@ -270,14 +274,14 @@ def search_proceed(
                     show_choices=True,
                 )
                 if play_or_queue == "p":
-                    sp_auth.start_playback(uris=[uris[index]])
+                    sp_auth.start_playback(uris=[uris[index]], device_id=device)
                     sleep(0.5)
                     get_current_playback(sp_auth, display=True)
                 else:
                     if album_or_track == "a":
-                        add_album_to_queue(sp_auth, uris[index])
+                        add_album_to_queue(sp_auth, uris[index], device=device)
                     else:
-                        sp_auth.add_to_queue(uris[index])
+                        sp_auth.add_to_queue(uris[index], device_id=device)
 
                     click.secho("Successfully added to queue!", fg="green")
 
