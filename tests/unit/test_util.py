@@ -64,7 +64,7 @@ def test_convert_timestamp():
     assert convert_timestamp("10:00") == 600000
 
 
-@pytest.mark.xfail
+@pytest.mark.xfail(reason="returns the wrong valid in CI for some reason")
 def test_convert_datetime():
 
     assert convert_datetime("20210813 20:01") == 1628910060000
@@ -394,29 +394,3 @@ def test_search_parse_track():
 
     assert actual_uris == uris
     assert actual_results == results
-
-
-# @patch("spotipy.client.Spotify.current_playback")
-# def mock_current_playback(example_response_data):
-#     return example_response_data
-
-
-# def test_get_current_playback(example_response_data):
-
-#     # mock_get_current_playback_patcher = patch.object(
-#     #     spotipy.client.Spotify, "current_playback", mock_current_playback
-#     # )
-
-#     # mock_get_current_playback = mock_get_current_playback_patcher.start()
-
-#     # mock_get_current_playback.return_value = Mock(status_code=200)
-
-#     # mock_get_current_playback.json.return_value = example_response_data
-
-#     # res = get_current_playback(sp_auth=None, display=True)
-
-#     # mock_get_current_playback_patcher.stop()
-
-#     res = get_current_playback(spotipy.Spotify(), False)
-
-#     assert res.json() == example_response_data
