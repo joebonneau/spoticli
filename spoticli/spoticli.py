@@ -11,6 +11,7 @@ from spotipy.client import SpotifyException
 from spotipy.oauth2 import SpotifyOAuth, SpotifyOauthError
 from tabulate import tabulate
 
+from spoticli.types import CommaSeparatedIndexRange, CommaSeparatedIndices
 from spoticli.util import (
     add_album_to_queue,
     convert_datetime,
@@ -413,9 +414,8 @@ def get_random_saved_album(ctx, device):
 
 
 @main.command("actp")
-@click.option("--device", envvar="SPOTIFY_DEVICE_ID")
 @click.pass_obj
-def add_current_track_to_playlists(ctx, device):
+def add_current_track_to_playlists(ctx):
     """
     Adds the current track in playback to one or more playlist(s).
     """
@@ -444,29 +444,23 @@ def add_current_track_to_playlists(ctx, device):
         display_dict = {"index": positions, "playlist_names": playlist_names}
         click.echo(tabulate(display_dict, headers="keys", tablefmt="github"))
 
-        while True:
-            indices = click.prompt(
-                "Enter the indices of the playlists to add the track to separated by commas."
+        indices = click.prompt(
+            "Enter the indices of the playlists to add the track to separated by commas.",
+            type=CommaSeparatedIndices([str(i) for i in positions]),
+            show_choices=False,
+        )
+
+        for index in indices:
+            sp_auth.playlist_add_items(
+                playlist_id=playlist_dict["playlist_ids"][index],
+                items=[playback["track_uri"]],
             )
 
-            try:
-                indices_int = list(map(int, indices.split(",")))
-
-                for index in indices_int:
-                    sp_auth.user_playlist_add_tracks(
-                        user=SPOTIFY_USER_ID,
-                        playlist_id=playlist_dict["playlist_ids"][index],
-                        tracks=[playback["track_uri"]],
-                    )
-
-                click.secho(
-                    "The track was successfully added to all specified playlists!"
-                )
-                break
-            except ValueError:
-                click.secho("Invalid input! Try again.", fg="red")
-    except TypeError:
-        click.secho("Nothing is currently playing!", fg="red")
+        click.secho(
+            "The track was successfully added to all specified playlists!", fg="green"
+        )
+    # except TypeError:
+    #     click.secho("Nothing is currently playing!", fg="red")
     except AttributeError:
         # AttributeError is thrown if authorization was unsuccessful, so show that error instead.
         pass
@@ -525,85 +519,71 @@ def recently_played(ctx, after, device):
         )
         click.echo(tabulate(display_dict, headers="keys", tablefmt="github"))
 
-        while True:
-            action = click.prompt(
-                "Take further action?",
-                type=Choice(("y", "n"), case_sensitive=False),
+        action = click.prompt(
+            "Take further action?",
+            type=Choice(("y", "n"), case_sensitive=False),
+            show_choices=True,
+        )
+        if action == "y":
+            task = click.prompt(
+                "Play now, add to queue, or create playlist?",
+                type=Choice(("p", "q", "cp"), case_sensitive=False),
                 show_choices=True,
             )
-            if action == "y":
-                task = click.prompt(
-                    "Play now, add to queue, or create playlist?",
-                    type=Choice(("p", "q", "cp"), case_sensitive=False),
+            if task == "cp":
+                indices = click.prompt(
+                    "Enter the indices of the tracks to add to the playlist separated by commas",
+                    type=CommaSeparatedIndexRange([str(i) for i in positions]),
+                    show_choices=False,
+                )
+                playlist_name = click.prompt("Enter the playlist name")
+                sp_auth.user_playlist_create(user=SPOTIFY_USER_ID, name=playlist_name)
+                playlist_res = sp_auth.current_user_playlists(limit=1)
+                playlist_uri = playlist_res["items"][0]["uri"]
+                sp_auth.playlist_add_items(
+                    playlist_uri,
+                    track_uris[indices[0] : indices[1] + 1],
+                )
+                click.secho(
+                    f"Playlist '{playlist_name}' created successfully!",
+                    fg="green",
+                )
+            else:
+                index = click.prompt(
+                    "Enter the index of interest",
+                    type=Choice([str(i) for i in positions]),
+                    show_choices=False,
+                )
+                index = int(index)
+                item_type = click.prompt(
+                    "Track or associated album?",
+                    type=Choice(("t", "a"), case_sensitive=False),
                     show_choices=True,
                 )
-                if task == "cp":
-                    while True:
-                        indices = click.prompt(
-                            "Enter the range of indices (comma separated) you want to include in the playlist"
+                if task == "q":
+                    if item_type == "t":
+                        sp_auth.add_to_queue(
+                            recent_dict["track_uri"][i], device_id=device
                         )
-                        index_list = indices.split(",")
-                        if len(index_list) == 2:
-                            try:
-                                index_list = [int(i) for i in index_list]
-                                playlist_name = click.prompt("Enter the playlist name")
-                                sp_auth.user_playlist_create(
-                                    user=SPOTIFY_USER_ID, name=playlist_name
-                                )
-                                playlist_res = sp_auth.current_user_playlists(limit=1)
-                                playlist_uri = playlist_res["items"][0]["uri"]
-                                sp_auth.playlist_add_items(
-                                    playlist_uri,
-                                    track_uris[index_list[0] : index_list[1] + 1],
-                                )
-                                click.secho(
-                                    f"Playlist {playlist_name} created successfully!",
-                                    fg="green",
-                                )
-                                break
-                            except ValueError:
-                                click.secho(
-                                    "Invalid input. Correct format is '0, 15'", fg="red"
-                                )
-                        else:
-                            click.secho(
-                                "Invalid input. Correct format is '0, 15'", fg="red"
-                            )
-                else:
-                    index = click.prompt(
-                        "Enter the index of interest",
-                        type=Choice([str(i) for i in positions]),
-                        show_choices=False,
-                    )
-                    index = int(index)
-                    item_type = click.prompt(
-                        "Track or associated album?",
-                        type=Choice(("t", "a"), case_sensitive=False),
-                        show_choices=True,
-                    )
-                    if task == "q":
-                        if item_type == "t":
-                            sp_auth.add_to_queue(
-                                recent_dict["track_uri"][i], device_id=device
-                            )
-                            click.secho(
-                                "Track successfully added to the queue.", fg="green"
-                            )
-                        else:
-                            add_album_to_queue(sp_auth, recent_dict["album_uri"][index])
-
+                        click.secho(
+                            "Track successfully added to the queue.", fg="green"
+                        )
                     else:
-                        if item_type == "t":
-                            sp_auth.start_playback(
-                                uris=[recent_dict["track_uri"][index]], device_id=device
-                            )
-                        else:
-                            sp_auth.start_playback(
-                                context_uri=recent_dict["album_uri"][index],
-                                device_id=device,
-                            )
-            else:
-                break
+                        add_album_to_queue(sp_auth, recent_dict["album_uri"][index])
+
+                else:
+                    if item_type == "t":
+                        sp_auth.start_playback(
+                            uris=[recent_dict["track_uri"][index]], device_id=device
+                        )
+                    else:
+                        sp_auth.start_playback(
+                            context_uri=recent_dict["album_uri"][index],
+                            device_id=device,
+                        )
+                    sleep(0.5)
+                    current_playback = sp_auth.current_playback()
+                    get_current_playback(res=current_playback, display=True)
     except ValueError:
         click.secho("Invalid format. Proper format is 'YYYYMMDD MM:SS", fg="red")
     except AttributeError:

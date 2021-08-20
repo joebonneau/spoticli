@@ -32,7 +32,9 @@ def add_playlist_to_queue(sp_auth, uri: str, device: Optional[str]) -> None:
     click.secho("All playlist tracks added successfully!", fg="green")
 
 
-def add_album_to_queue(sp_auth: Spotify, uri: str, device: Optional[str]) -> None:
+def add_album_to_queue(
+    sp_auth: Spotify, uri: str, device: Optional[str] = None
+) -> None:
     """
     Adds all tracks of an album to the queue.
     """
@@ -44,7 +46,7 @@ def add_album_to_queue(sp_auth: Spotify, uri: str, device: Optional[str]) -> Non
         if len(tracks_res) < 50:
             break
 
-    click.secho("Album successfully added to queue!", fg="green")
+    click.secho("Album successfully added to the queue.", fg="green")
 
 
 def get_artist_names(res: dict[str, Any]) -> str:
