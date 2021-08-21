@@ -43,8 +43,6 @@ states = [
 ]
 STATE_STR = " ".join(states)
 
-device_error_message = " Try pressing play on the device that you want to control."
-
 
 @click.group()
 @click.pass_context
@@ -155,19 +153,28 @@ def pause_playback(ctx, device):
 
 @main.command("play")
 @click.option("--device", envvar="SPOTIFY_DEVICE_ID")
+@click.argument("url", required=False)
 @click.pass_obj
-def start_playback(ctx, device):
+def start_playback(ctx, device, url):
     """
     Resumes playback on the active track.
     """
     sp_auth = ctx
 
     try:
-        sp_auth.start_playback(device_id=device)
-
-        click.secho("Playback resumed.")
+        if url:
+            if "track" in url:
+                sp_auth.start_playback(device_id=device, uris=[url])
+            else:
+                sp_auth.start_playback(device_id=device, context_uri=url)
+        else:
+            sp_auth.start_playback(device_id=device)
+            click.secho("Playback resumed.")
+        sleep(0.5)
         current_playback = sp_auth.current_playback()
         get_current_playback(res=current_playback, display=True)
+    except TypeError:
+        click.secho("Invalid URL was provided.", fg="red")
     except AttributeError:
         # AttributeError is thrown if authorization was unsuccessful, so show that error instead.
         pass
@@ -220,7 +227,7 @@ def seek(ctx, timestamp, device):
     """
     Seeks the track to the timestamp specified.
 
-    TIMESTAMP format is MM:SS
+    Timestamp format is MM:SS
     """
 
     sp_auth = ctx
@@ -405,23 +412,20 @@ def get_random_saved_album(ctx, device):
             else:
                 break
 
-        while True:
-            queue = click.prompt(
-                "Play album now or add to queue?",
-                type=Choice(("p", "q"), case_sensitive=False),
-                show_choices=True,
+        queue = click.prompt(
+            "Play album now or add to queue?",
+            type=Choice(("p", "q"), case_sensitive=False),
+            show_choices=True,
+        )
+        if queue == "q":
+            add_album_to_queue(sp_auth, saved_albums[rand_i]["album_uri"])
+        else:
+            sp_auth.start_playback(
+                context_uri=saved_albums[rand_i]["album_uri"], device_id=device
             )
-            if queue == "q":
-                add_album_to_queue(sp_auth, saved_albums[rand_i]["album_uri"])
-                break
-            else:
-                sp_auth.start_playback(
-                    context_uri=saved_albums[rand_i]["album_uri"], device_id=device
-                )
-                sleep(0.5)
-                current_playback = sp_auth.current_playback()
-                get_current_playback(res=current_playback, display=True)
-                break
+            sleep(0.5)
+            current_playback = sp_auth.current_playback()
+            get_current_playback(res=current_playback, display=True)
     except AttributeError:
         # AttributeError is thrown if authorization was unsuccessful, so show that error instead.
         pass
@@ -630,6 +634,29 @@ def search(ctx, term, type_, device):
         search_res = sp_auth.search(q=term, limit=10, type=type_, device=device)
         results, uris = search_parse(search_res, k)
         search_proceed(sp_auth, type_, results, uris)
+    except AttributeError:
+        pass
+    except SpotifyException as e:
+        click.secho(str(e), fg="red")
+
+
+@main.command("atq")
+@click.option("--device", envvar="SPOTIFY_DEVICE_ID")
+@click.argument("url", required=True)
+@click.pass_obj
+def add_to_queue(ctx, url, device):
+    """
+    Adds a track or album to the queue from a Spotify URL.
+    """
+
+    sp_auth = ctx
+
+    try:
+        if "album" in url:
+            add_album_to_queue(sp_auth, url, device)
+        else:
+            sp_auth.add_to_queue(url, device)
+            click.secho("Track successfully added to queue.", fg="green")
     except AttributeError:
         pass
     except SpotifyException as e:
