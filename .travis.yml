@@ -9,4 +9,6 @@ install:
 script:
     - poetry run flake8
     - poetry run mypy --install-types
-    - pytest --verbose
+    - pytest --cov
+after_success:
+    - codecov
