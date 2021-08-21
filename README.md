@@ -1,3 +1,4 @@
+[![Build Status](https://travis-ci.com/joebonneau/spoticli.svg?branch=main)](https://travis-ci.com/joebonneau/spoticli)
 # SpotiCLI
 A command line interface for Spotify written in Python!
 

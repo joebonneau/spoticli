@@ -1,0 +1,73 @@
+{
+    "artists": {
+        "href": "https://api.spotify.com/v1/search?query=a+tribe+called+quest&type=artist&offset=0&limit=10",
+        "items": [
+            {
+                "external_urls": {
+                    "spotify": "https://open.spotify.com/artist/09hVIj6vWgoCDtT03h8ZCa"
+                },
+                "followers": {
+                    "href": null,
+                    "total": 1502466
+                },
+                "genres": [
+                    "alternative hip hop",
+                    "conscious hip hop",
+                    "east coast hip hop",
+                    "gangster rap",
+                    "golden age hip hop",
+                    "hardcore hip hop",
+                    "hip hop",
+                    "jazz rap",
+                    "queens hip hop",
+                    "rap"
+                ],
+                "href": "https://api.spotify.com/v1/artists/09hVIj6vWgoCDtT03h8ZCa",
+                "id": "09hVIj6vWgoCDtT03h8ZCa",
+                "images": [
+                    {
+                        "height": 640,
+                        "url": "https://i.scdn.co/image/ab6761610000e5eb774d73ae6796b6f437d89db9",
+                        "width": 640
+                    },
+                    {
+                        "height": 320,
+                        "url": "https://i.scdn.co/image/ab67616100005174774d73ae6796b6f437d89db9",
+                        "width": 320
+                    },
+                    {
+                        "height": 160,
+                        "url": "https://i.scdn.co/image/ab6761610000f178774d73ae6796b6f437d89db9",
+                        "width": 160
+                    }
+                ],
+                "name": "A Tribe Called Quest",
+                "popularity": 71,
+                "type": "artist",
+                "uri": "spotify:artist:09hVIj6vWgoCDtT03h8ZCa"
+            },
+            {
+                "external_urls": {
+                    "spotify": "https://open.spotify.com/artist/2NQZmi2vNrB09no3wbNuJC"
+                },
+                "followers": {
+                    "href": null,
+                    "total": 1
+                },
+                "genres": [],
+                "href": "https://api.spotify.com/v1/artists/2NQZmi2vNrB09no3wbNuJC",
+                "id": "2NQZmi2vNrB09no3wbNuJC",
+                "images": [],
+                "name": "A Tribe Called Quest",
+                "popularity": 11,
+                "type": "artist",
+                "uri": "spotify:artist:2NQZmi2vNrB09no3wbNuJC"
+            }
+        ],
+        "limit": 10,
+        "next": null,
+        "offset": 0,
+        "previous": null,
+        "total": 2
+    }
+}
