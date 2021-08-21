@@ -1,3 +1,4 @@
+import json
 import os
 import random
 from time import sleep
@@ -7,6 +8,7 @@ import click
 import spotipy as sp
 from click.termui import style
 from click.types import Choice
+from spotipy.cache_handler import MemoryCacheHandler
 from spotipy.client import SpotifyException
 from spotipy.oauth2 import SpotifyOAuth, SpotifyOauthError
 from tabulate import tabulate
@@ -27,6 +29,7 @@ SPOTIFY_CLIENT_ID = os.environ.get("SPOTIFY_CLIENT_ID")
 SPOTIFY_CLIENT_SECRET = os.environ.get("SPOTIFY_CLIENT_SECRET")
 SPOTIFY_REDIRECT_URI = os.environ.get("SPOTIFY_REDIRECT_URI")
 SPOTIFY_DEVICE_ID = os.environ.get("SPOTIFY_DEVICE_ID")
+CACHED_TOKEN_INFO = os.environ.get("CACHED_TOKEN_INFO")
 
 states = [
     "user-modify-playback-state",
@@ -54,15 +57,27 @@ def main(
 ):
 
     try:
-        auth = sp.Spotify(
-            auth_manager=SpotifyOAuth(
-                scope=scope,
-                client_id=client_id,
-                client_secret=client_secret,
-                redirect_uri=redirect_uri,
-                open_browser=False,
+        if CACHED_TOKEN_INFO:
+            token_info = json.loads(CACHED_TOKEN_INFO)
+            auth = sp.Spotify(
+                auth_manager=SpotifyOAuth(
+                    scope=scope,
+                    client_id=client_id,
+                    client_secret=client_secret,
+                    redirect_uri=redirect_uri,
+                    cache_handler=MemoryCacheHandler(token_info=token_info),
+                )
             )
-        )
+        else:
+            if CACHED_TOKEN_INFO:
+                auth = sp.Spotify(
+                    auth_manager=SpotifyOAuth(
+                        scope=scope,
+                        client_id=client_id,
+                        client_secret=client_secret,
+                        redirect_uri=redirect_uri,
+                    )
+                )
 
         ctx.obj = auth
     except (SpotifyException, SpotifyOauthError) as e:
