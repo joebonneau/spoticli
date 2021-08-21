@@ -64,7 +64,7 @@ def test_convert_timestamp():
     assert convert_timestamp("10:00") == 600000
 
 
-@pytest.mark.xfail(reason="returns the wrong valid in CI for some reason")
+@pytest.mark.xfail(reason="returns the wrong value in CI for some reason")
 def test_convert_datetime():
 
     assert convert_datetime("20210813 20:01") == 1628910060000
