@@ -108,6 +108,7 @@ spoticli recent --help
 As of August 21, 2021, here is a comprehensive list of all available commands:
 
 * `actp` (add current track to playlists)
+* `atq` (add to queue from url)
 * `cp` (create playlist)
 * `next`
 * `now` (current playback)
