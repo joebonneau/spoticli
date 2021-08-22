@@ -16,10 +16,12 @@ from tabulate import tabulate
 from spoticli.types import CommaSeparatedIndexRange, CommaSeparatedIndices
 from spoticli.util import (
     add_album_to_queue,
+    check_url_format,
     convert_datetime,
     convert_timestamp,
     get_artist_names,
     get_current_playback,
+    parse_recent_playback,
     search_parse,
     search_proceed,
 )
@@ -42,8 +44,6 @@ states = [
     "user-read-recently-played",
 ]
 STATE_STR = " ".join(states)
-
-device_error_message = " Try pressing play on the device that you want to control."
 
 
 @click.group()
@@ -69,15 +69,14 @@ def main(
                 )
             )
         else:
-            if CACHED_TOKEN_INFO:
-                auth = sp.Spotify(
-                    auth_manager=SpotifyOAuth(
-                        scope=scope,
-                        client_id=client_id,
-                        client_secret=client_secret,
-                        redirect_uri=redirect_uri,
-                    )
+            auth = sp.Spotify(
+                auth_manager=SpotifyOAuth(
+                    scope=scope,
+                    client_id=client_id,
+                    client_secret=client_secret,
+                    redirect_uri=redirect_uri,
                 )
+            )
 
         ctx.obj = auth
     except (SpotifyException, SpotifyOauthError) as e:
@@ -155,19 +154,29 @@ def pause_playback(ctx, device):
 
 @main.command("play")
 @click.option("--device", envvar="SPOTIFY_DEVICE_ID")
+@click.argument("url", required=False)
 @click.pass_obj
-def start_playback(ctx, device):
+def start_playback(ctx, device, url):
     """
     Resumes playback on the active track.
     """
     sp_auth = ctx
 
     try:
-        sp_auth.start_playback(device_id=device)
-
-        click.secho("Playback resumed.")
+        if url:
+            if "track" in url:
+                check_url_format(url)
+                sp_auth.start_playback(device_id=device, uris=[url])
+            else:
+                sp_auth.start_playback(device_id=device, context_uri=url)
+        else:
+            sp_auth.start_playback(device_id=device)
+            click.secho("Playback resumed.")
+        sleep(0.5)
         current_playback = sp_auth.current_playback()
         get_current_playback(res=current_playback, display=True)
+    except ValueError:
+        click.secho("Invalid URL was provided.", fg="red")
     except AttributeError:
         # AttributeError is thrown if authorization was unsuccessful, so show that error instead.
         pass
@@ -220,7 +229,7 @@ def seek(ctx, timestamp, device):
     """
     Seeks the track to the timestamp specified.
 
-    TIMESTAMP format is MM:SS
+    Timestamp format is MM:SS
     """
 
     sp_auth = ctx
@@ -405,23 +414,20 @@ def get_random_saved_album(ctx, device):
             else:
                 break
 
-        while True:
-            queue = click.prompt(
-                "Play album now or add to queue?",
-                type=Choice(("p", "q"), case_sensitive=False),
-                show_choices=True,
+        queue = click.prompt(
+            "Play album now or add to queue?",
+            type=Choice(("p", "q"), case_sensitive=False),
+            show_choices=True,
+        )
+        if queue == "q":
+            add_album_to_queue(sp_auth, saved_albums[rand_i]["album_uri"])
+        else:
+            sp_auth.start_playback(
+                context_uri=saved_albums[rand_i]["album_uri"], device_id=device
             )
-            if queue == "q":
-                add_album_to_queue(sp_auth, saved_albums[rand_i]["album_uri"])
-                break
-            else:
-                sp_auth.start_playback(
-                    context_uri=saved_albums[rand_i]["album_uri"], device_id=device
-                )
-                sleep(0.5)
-                current_playback = sp_auth.current_playback()
-                get_current_playback(res=current_playback, display=True)
-                break
+            sleep(0.5)
+            current_playback = sp_auth.current_playback()
+            get_current_playback(res=current_playback, display=True)
     except AttributeError:
         # AttributeError is thrown if authorization was unsuccessful, so show that error instead.
         pass
@@ -487,8 +493,9 @@ def add_current_track_to_playlists(ctx):
 @main.command("recent")
 @click.option("--device", envvar="SPOTIFY_DEVICE_ID")
 @click.option("-a", "--after", default=None, help="YYYYMMDD MM:SS")
+@click.option("-l", "--limit", default=25, help="Entries to return (max 50)")
 @click.pass_obj
-def recently_played(ctx, after, device):
+def recently_played(ctx, after, limit, device):
     """
     Displays information about recently played tracks.
     """
@@ -498,108 +505,67 @@ def recently_played(ctx, after, device):
     try:
         if after:
             recent_playback = sp_auth.current_user_recently_played(
-                limit=25, after=convert_datetime(after)
+                limit=limit, after=convert_datetime(after)
             )
         else:
-            recent_playback = sp_auth.current_user_recently_played(limit=25)
+            recent_playback = sp_auth.current_user_recently_played(limit=limit)
 
-        positions = []
-        track_names = []
-        track_uris = []
-        album_names = []
-        album_uris = []
-        album_types = []
-        timestamps = []
-        playback_items = recent_playback["items"]
-        for i, item in enumerate(playback_items):
-            positions.append(i)
-            track_names.append(item["track"]["name"])
-            track_uris.append(item["track"]["uri"])
-            album_names.append(item["track"]["album"]["name"])
-            album_uris.append(item["track"]["album"]["uri"])
-            album_types.append(item["track"]["album"]["album_type"])
-            timestamps.append(item["played_at"])
+        positions, recent_dict, track_uris = parse_recent_playback(recent_playback)
 
-        recent_dict = {
-            "index": positions,
-            "track_name": track_names,
-            "track_uri": track_uris,
-            "album_name": album_names,
-            "album_uri": album_uris,
-            "album_type": album_types,
-            "timestamp": timestamps,
-        }
-        display_dict = dict(
-            (k, recent_dict[k])
-            for k in ("index", "track_name", "album_type", "album_name", "timestamp")
-        )
-        click.echo(tabulate(display_dict, headers="keys", tablefmt="github"))
-
-        action = click.prompt(
-            "Take further action?",
-            type=Choice(("y", "n"), case_sensitive=False),
+        task = click.prompt(
+            "Play now, add to queue, or create playlist?",
+            type=Choice(("p", "q", "cp"), case_sensitive=False),
             show_choices=True,
         )
-        if action == "y":
-            task = click.prompt(
-                "Play now, add to queue, or create playlist?",
-                type=Choice(("p", "q", "cp"), case_sensitive=False),
-                show_choices=True,
+        if task == "cp":
+            indices = click.prompt(
+                "Enter the indices of the tracks to add to the playlist separated by commas",
+                type=CommaSeparatedIndexRange([str(i) for i in positions]),
+                show_choices=False,
             )
-            if task == "cp":
-                indices = click.prompt(
-                    "Enter the indices of the tracks to add to the playlist separated by commas",
-                    type=CommaSeparatedIndexRange([str(i) for i in positions]),
-                    show_choices=False,
-                )
-                playlist_name = click.prompt("Enter the playlist name")
-                sp_auth.user_playlist_create(user=SPOTIFY_USER_ID, name=playlist_name)
-                playlist_res = sp_auth.current_user_playlists(limit=1)
-                playlist_uri = playlist_res["items"][0]["uri"]
-                sp_auth.playlist_add_items(
-                    playlist_uri,
-                    track_uris[indices[0] : indices[1] + 1],
-                )
-                click.secho(
-                    f"Playlist '{playlist_name}' created successfully!",
-                    fg="green",
-                )
-            else:
-                index = click.prompt(
+            playlist_name = click.prompt("Enter the playlist name")
+            sp_auth.user_playlist_create(user=SPOTIFY_USER_ID, name=playlist_name)
+            playlist_res = sp_auth.current_user_playlists(limit=1)
+            playlist_uri = playlist_res["items"][0]["uri"]
+            sp_auth.playlist_add_items(
+                playlist_uri,
+                track_uris[indices[0] : indices[1] + 1],
+            )
+            click.secho(
+                f"Playlist '{playlist_name}' created successfully!",
+                fg="green",
+            )
+        elif task in ("p", "q"):
+            index = int(
+                click.prompt(
                     "Enter the index of interest",
                     type=Choice([str(i) for i in positions]),
                     show_choices=False,
                 )
-                index = int(index)
-                item_type = click.prompt(
-                    "Track or associated album?",
-                    type=Choice(("t", "a"), case_sensitive=False),
-                    show_choices=True,
-                )
-                if task == "q":
-                    if item_type == "t":
-                        sp_auth.add_to_queue(
-                            recent_dict["track_uri"][i], device_id=device
-                        )
-                        click.secho(
-                            "Track successfully added to the queue.", fg="green"
-                        )
-                    else:
-                        add_album_to_queue(sp_auth, recent_dict["album_uri"][index])
+            )
+            item_type = click.prompt(
+                "Track or associated album?",
+                type=Choice(("t", "a"), case_sensitive=False),
+                show_choices=True,
+            )
+            if task == "q" and item_type == "t":
+                sp_auth.add_to_queue(recent_dict["track_uri"][index], device_id=device)
+                click.secho("Track successfully added to the queue.", fg="green")
+            elif task == "q" and item_type == "a":
+                add_album_to_queue(sp_auth, recent_dict["album_uri"][index])
 
-                else:
-                    if item_type == "t":
-                        sp_auth.start_playback(
-                            uris=[recent_dict["track_uri"][index]], device_id=device
-                        )
-                    else:
-                        sp_auth.start_playback(
-                            context_uri=recent_dict["album_uri"][index],
-                            device_id=device,
-                        )
-                    sleep(0.5)
-                    current_playback = sp_auth.current_playback()
-                    get_current_playback(res=current_playback, display=True)
+            elif task == "p" and item_type == "t":
+                sp_auth.start_playback(
+                    uris=[recent_dict["track_uri"][index]], device_id=device
+                )
+            elif task == "p" and item_type == "a":
+                sp_auth.start_playback(
+                    context_uri=recent_dict["album_uri"][index],
+                    device_id=device,
+                )
+            sleep(0.5)
+            current_playback = sp_auth.current_playback()
+            get_current_playback(res=current_playback, display=True)
     except ValueError:
         click.secho("Invalid format. Proper format is 'YYYYMMDD MM:SS", fg="red")
     except AttributeError:
@@ -610,7 +576,7 @@ def recently_played(ctx, after, device):
 
 
 @main.command("search")
-@click.option("--device", envvar="SPOTIFY_DEVICE_ID")
+@click.option("--device", default=None, envvar="SPOTIFY_DEVICE_ID")
 @click.option(
     "-t",
     "type_",
@@ -627,9 +593,35 @@ def search(ctx, term, type_, device):
 
     k = type_ + "s"
     try:
-        search_res = sp_auth.search(q=term, limit=10, type=type_, device=device)
+        search_res = sp_auth.search(q=term, limit=10, type=type_)
         results, uris = search_parse(search_res, k)
-        search_proceed(sp_auth, type_, results, uris)
+        search_proceed(sp_auth, type_, results, uris, device=device)
+    except AttributeError:
+        pass
+    except SpotifyException as e:
+        click.secho(str(e), fg="red")
+
+
+@main.command("atq")
+@click.option("--device", envvar="SPOTIFY_DEVICE_ID")
+@click.argument("url", required=True)
+@click.pass_obj
+def add_to_queue(ctx, url, device):
+    """
+    Adds a track or album to the queue from a Spotify URL.
+    """
+
+    sp_auth = ctx
+
+    try:
+        check_url_format(url)
+        if "album" in url:
+            add_album_to_queue(sp_auth, url, device)
+        else:
+            sp_auth.add_to_queue(url, device)
+            click.secho("Track successfully added to queue.", fg="green")
+    except ValueError:
+        click.secho("An invalid URL was provided.", fg="red")
     except AttributeError:
         pass
     except SpotifyException as e:

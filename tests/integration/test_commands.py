@@ -1,6 +1,5 @@
 import os
 
-import click
 from click.testing import CliRunner
 
 from spoticli.spoticli import main
@@ -9,11 +8,8 @@ SPOTIFY_DEVICE_ID = os.environ.get("SPOTIFY_DEVICE_ID")
 
 
 def test_play():
-    click.echo("start")
     runner = CliRunner()
-    click.echo("before invoke")
     result = runner.invoke(main, ["play", f"--device={SPOTIFY_DEVICE_ID}"])
-    click.echo("after invoke")
     assert "Now playing:" in result.output
 
 
@@ -81,14 +77,6 @@ def test_add_current_track_to_playlist():
     assert (
         "The track was successfully added to all specified playlists!" in result.output
     )
-
-
-def test_recent_no_action():
-    runner = CliRunner()
-
-    result = runner.invoke(main, ["recent", f"--device={SPOTIFY_DEVICE_ID}"], input="n")
-
-    assert "track_name" in result.output
 
 
 def test_recent_action_play_track():

@@ -1,7 +1,8 @@
+import re
 import time
 from datetime import datetime
 from time import sleep
-from typing import Any, Optional
+from typing import Any, Generator, Optional
 
 import click
 from click.termui import style
@@ -62,7 +63,7 @@ def get_artist_names(res: dict[str, Any]) -> str:
     return artists_str
 
 
-def get_current_playback(res: dict[str, Any], display: bool) -> dict:  # type: ignore
+def get_current_playback(res: dict[str, Any], display: bool) -> Optional[dict]:  # type: ignore
     """
     Retrieves current playback information, parses the json response, and optionally displays
     information about the current playback.
@@ -70,20 +71,20 @@ def get_current_playback(res: dict[str, Any], display: bool) -> dict:  # type: i
 
     try:
         playback_items = res["item"]
-        playback = {}
+        playback_album = playback_items["album"]
 
-        artists_str = get_artist_names(playback_items["album"])
-
-        playback["artists"] = artists_str
-        playback["track_name"] = playback_items["name"]
-        playback["track_uri"] = playback_items["uri"]
-        playback["album_name"] = playback_items["album"]["name"]
-        playback["album_type"] = playback_items["album"]["type"]
-        playback["album_uri"] = playback_items["album"]["uri"]
-        playback["release_date"] = playback_items["album"]["release_date"]
-        playback["duration"] = convert_ms(playback_items["duration_ms"])
-        playback["volume"] = res["device"]["volume_percent"]
-        playback["shuffle_state"] = res["shuffle_state"]
+        playback = {
+            "artists": get_artist_names(playback_album),
+            "track_name": playback_items["name"],
+            "track_uri": playback_items["uri"],
+            "album_name": playback_album["name"],
+            "album_type": playback_album["album_type"],
+            "album_uri": playback_album["uri"],
+            "release_date": playback_album["release_date"],
+            "duration": convert_ms(playback_items["duration_ms"]),
+            "volume": res["device"]["volume_percent"],
+            "shuffle_state": res["shuffle_state"],
+        }
 
         if display:
             track_name = style(playback["track_name"], fg="magenta")
@@ -170,122 +171,82 @@ def search_proceed(
 ) -> None:
 
     click.secho(tabulate(results, headers="keys", tablefmt="github"))
-    proceed = click.prompt(
-        "Do you want to proceed with one of these items?",
-        type=Choice(("y", "n"), case_sensitive=False),
-        show_choices=True,
-    )
-    if proceed == "y":
-        choices = (str(num) for num in range(len(results)))
-        index = click.prompt(
+
+    choices = (str(num) for num in range(len(results)))
+    index = int(
+        click.prompt(
             "Enter the index",
             type=Choice(choices),  # type: ignore
             show_choices=False,
         )
-        index = int(index)
+    )
 
-        if type_ != "artist":
-            action = click.prompt(
-                "Play now or add to queue?",
-                type=Choice(("p", "q"), case_sensitive=False),
-                show_choices=True,
-            )
-            if action == "p":
-                sp_auth.start_playback(uris=[uris[index]], device_id=device)
-                sleep(0.5)
-                get_current_playback(sp_auth, display=True)
-            else:
-                if type_ == "album":
-                    add_album_to_queue(sp_auth, uris[index], device=device)
-                elif type_ == "playlist":
-                    confirmation = click.prompt(
-                        f"Are you sure you want to add all {results[index]['tracks']} tracks?",
-                        type=Choice(("y", "n"), case_sensitive=False),
-                        show_choices=True,
-                    )
-                    if confirmation == "y":
-                        add_playlist_to_queue(sp_auth, uris[index], device=device)
-                    else:
-                        click.secho("Operation aborted.", fg="red")
-                elif type_ == "track":
-                    sp_auth.add_to_queue(uris[index], device_id=device)
-                    click.secho("Track added to queue successfully!", fg="green")
-        elif type_ == "artist":
-            album_or_track = click.prompt(
-                "View artist albums or most popular tracks?",
-                type=Choice(("a", "t"), case_sensitive=False),
-                show_choices=True,
-            )
-            if album_or_track == "a":
-                artist_albums_res = sp_auth.artist_albums(
-                    uris[index], album_type="album,single"
-                )
-                albums = []
-                uris = []
-                for i, item in enumerate(artist_albums_res["items"]):
-                    album_type = item["album_type"]
-                    artists = truncate(get_artist_names(item))
-                    album_name = item["name"]
-                    release_date = item["release_date"]
-                    total_tracks = item["total_tracks"]
-                    uris.append(item["uri"])
-                    albums.append(
-                        {
-                            "index": i,
-                            "artist(s)": artists,
-                            "album name": album_name,
-                            "album type": album_type,
-                            "tracks": total_tracks,
-                            "release date": release_date,
-                        }
-                    )
-
-                click.echo(tabulate(albums, headers="keys", tablefmt="github"))
-            else:
-                artist_tracks_res = sp_auth.artist_top_tracks(uris[index])
-                top_tracks = []
-                uris = []
-                for i, track in enumerate(artist_tracks_res["tracks"]):
-                    top_tracks.append(
-                        {
-                            "index": i,
-                            "name": track["name"],
-                            "artists": get_artist_names(track["album"]),
-                            "popularity": track["popularity"],
-                        }
-                    )
-                    uris.append(track["uri"])
-                click.echo(tabulate(top_tracks, headers="keys", tablefmt="github"))
-
-            further_action = click.prompt(
-                "Do you want to take further action?",
-                type=Choice(("y", "n"), case_sensitive=False),
-                show_choices=True,
-            )
-            if further_action == "y":
-                choices = (str(num) for num in range(len(top_tracks)))
-                index = click.prompt(
-                    "Enter the index",
-                    type=Choice(choices),  # type: ignore
-                    show_choices=False,
-                )
-                index = int(index)
-                play_or_queue = click.prompt(
-                    "Play now or add to queue?",
-                    type=Choice(("p", "q"), case_sensitive=False),
+    if type_ != "artist":
+        action = click.prompt(
+            "Play now or add to queue?",
+            type=Choice(("p", "q"), case_sensitive=False),
+            show_choices=True,
+        )
+        if action == "p":
+            sp_auth.start_playback(uris=[uris[index]], device_id=device)
+            sleep(0.5)
+            current_playback = sp_auth.current_playback()
+            get_current_playback(current_playback, display=True)
+        else:
+            if type_ == "album":
+                add_album_to_queue(sp_auth, uris[index], device=device)
+            elif type_ == "playlist":
+                confirmation = click.prompt(
+                    f"Are you sure you want to add all {results[index]['tracks']} tracks?",
+                    type=Choice(("y", "n"), case_sensitive=False),
                     show_choices=True,
                 )
-                if play_or_queue == "p":
-                    sp_auth.start_playback(uris=[uris[index]], device_id=device)
-                    sleep(0.5)
-                    get_current_playback(sp_auth, display=True)
+                if confirmation == "y":
+                    add_playlist_to_queue(sp_auth, uris[index], device=device)
                 else:
-                    if album_or_track == "a":
-                        add_album_to_queue(sp_auth, uris[index], device=device)
-                    else:
-                        sp_auth.add_to_queue(uris[index], device_id=device)
+                    click.secho("Operation aborted.", fg="red")
+            elif type_ == "track":
+                sp_auth.add_to_queue(uris[index], device_id=device)
+                click.secho("Track added to queue successfully!", fg="green")
+    elif type_ == "artist":
+        album_or_track = click.prompt(
+            "View artist albums or most popular tracks?",
+            type=Choice(("a", "t"), case_sensitive=False),
+            show_choices=True,
+        )
+        if album_or_track == "a":
+            artist_albums_res = sp_auth.artist_albums(
+                uris[index], album_type="album,single"
+            )
+            uris, choices = parse_artist_albums(artist_albums_res)
+        else:
+            artist_tracks_res = sp_auth.artist_top_tracks(uris[index])
+            uris, choices = parse_artist_top_tracks(artist_tracks_res)
 
-                    click.secho("Successfully added to queue!", fg="green")
+        index = int(
+            click.prompt(
+                "Enter the index",
+                type=Choice(choices),  # type: ignore
+                show_choices=False,
+            )
+        )
+        # index = int(index)
+        play_or_queue = click.prompt(
+            "Play now or add to queue?",
+            type=Choice(("p", "q"), case_sensitive=False),
+            show_choices=True,
+        )
+        if play_or_queue == "p":
+            sp_auth.start_playback(uris=[uris[index]], device_id=device)
+            sleep(0.5)
+            get_current_playback(sp_auth, display=True)
+        else:
+            if album_or_track == "a":
+                add_album_to_queue(sp_auth, uris[index], device=device)
+            else:
+                sp_auth.add_to_queue(uris[index], device_id=device)
+
+            click.secho("Successfully added to queue!", fg="green")
 
 
 def convert_ms(duration_ms: int) -> str:
@@ -316,12 +277,10 @@ def convert_timestamp(timestamp: str) -> int:
     seconds_in_ms = int(seconds) * 1000
     total_ms = minutes_in_ms + seconds_in_ms
 
-    if (len(seconds) > 2 or len(seconds) < 2) or (
-        minutes_in_ms < 0 or seconds_in_ms < 0
-    ):
+    if any((len(seconds) > 2, len(seconds) < 2, minutes_in_ms < 0, seconds_in_ms < 0)):
         raise ValueError("Invalid format. Proper format is MM:SS.")
-    else:
-        return total_ms
+
+    return total_ms
 
 
 def convert_datetime(datetime_str: str) -> int:
@@ -344,3 +303,117 @@ def truncate(name: str, length: int = 50) -> str:
         name = name[0:length] + "..."
 
     return name
+
+
+def check_url_format(url: str) -> Optional[bool]:
+    """
+    Performs a simple URL validation check. Definitely won't catch all errors, but will eliminate most.
+    """
+
+    pattern = r"open.spotify.com/[a-z]{5,8}/\w{22}"
+
+    match = re.search(pattern, url)
+    if not match:
+        raise ValueError
+
+    return True
+
+
+def parse_recent_playback(
+    res: dict[str, Any]
+) -> tuple[list[int], dict[str, list], list[str]]:
+    """
+    Parses the response returned by Spotify.current_user_recently_played and displays a table of information.
+    """
+
+    positions = []
+    track_names = []
+    track_uris = []
+    album_names = []
+    album_uris = []
+    album_types = []
+    timestamps = []
+    playback_items = res["items"]
+    for i, item in enumerate(playback_items):
+        positions.append(i)
+        track_names.append(item["track"]["name"])
+        track_uris.append(item["track"]["uri"])
+        album_names.append(item["track"]["album"]["name"])
+        album_uris.append(item["track"]["album"]["uri"])
+        album_types.append(item["track"]["album"]["album_type"])
+        timestamps.append(item["played_at"])
+
+    recent_dict = {
+        "index": positions,
+        "track_name": track_names,
+        "track_uri": track_uris,
+        "album_name": album_names,
+        "album_uri": album_uris,
+        "album_type": album_types,
+        "timestamp": timestamps,
+    }
+    display_dict = dict(
+        (k, recent_dict[k])
+        for k in ("index", "track_name", "album_type", "album_name", "timestamp")
+    )
+    click.echo(tabulate(display_dict, headers="keys", tablefmt="github"))
+
+    return positions, recent_dict, track_uris
+
+
+def parse_artist_top_tracks(
+    res: dict[str, Any]
+) -> tuple[list[str], Generator[str, None, None]]:
+    """
+    Parses the response returned by Spotify.artist_top_tracks and displays a table of information.
+    """
+
+    tracks = []
+    uris = []
+    for i, track in enumerate(res["tracks"]):
+        tracks.append(
+            {
+                "index": i,
+                "name": track["name"],
+                "artists": get_artist_names(track["album"]),
+                "popularity": track["popularity"],
+            }
+        )
+        uris.append(track["uri"])
+    click.echo(tabulate(tracks, headers="keys", tablefmt="github"))
+    choices = (str(num) for num in range(len(tracks)))
+
+    return uris, choices
+
+
+def parse_artist_albums(
+    res: dict[str, Any]
+) -> tuple[list[str], Generator[str, None, None]]:
+    """
+    Parses the response returned by Spotify.artist_albums and displays a table of information.
+    """
+
+    albums = []
+    uris = []
+    for i, item in enumerate(res["items"]):
+        album_type = item["album_type"]
+        artists = truncate(get_artist_names(item))
+        album_name = item["name"]
+        release_date = item["release_date"]
+        total_tracks = item["total_tracks"]
+        uris.append(item["uri"])
+        albums.append(
+            {
+                "index": i,
+                "artist(s)": artists,
+                "album name": album_name,
+                "album type": album_type,
+                "tracks": total_tracks,
+                "release date": release_date,
+            }
+        )
+
+    click.echo(tabulate(albums, headers="keys", tablefmt="github"))
+    choices = (str(num) for num in range(len(albums)))
+
+    return uris, choices

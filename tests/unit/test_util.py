@@ -4,6 +4,7 @@ from pathlib import Path
 import pytest
 
 from spoticli.util import (
+    check_url_format,
     convert_datetime,
     convert_ms,
     convert_timestamp,
@@ -394,3 +395,30 @@ def test_search_parse_track():
 
     assert actual_uris == uris
     assert actual_results == results
+
+
+def test_check_url_format_valid():
+
+    track_url = (
+        "https://open.spotify.com/track/464BrxdI2djpYOUoXol3cQ?si=8757bf6f2e5a4120"
+    )
+    album_url = "https://open.spotify.com/album/4XF4TSU1Z8FvA52wvZqrQ5?si=0l5T5q6BQfKacmPF9hjpXg&dl_branch=1"
+    playlist_url = (
+        "https://open.spotify.com/playlist/5fArw51CQey2sVuS6SULxl?si=9b4f62b39b3a4a6d"
+    )
+
+    assert check_url_format(track_url)
+    assert check_url_format(album_url)
+    assert check_url_format(playlist_url)
+
+
+def test_check_url_format_invalid():
+
+    url_1 = "https://open.spotify.com/track/464Br"
+    url_2 = "https://close.spotify.com/album/4XF4TSU1Z8FvA52wvZqrQ5?si=0l5T5q6BQfKacmPF9hjpXg&dl_branch=1"
+
+    with pytest.raises(ValueError):
+        check_url_format(url_1)
+
+    with pytest.raises(ValueError):
+        check_url_format(url_2)
