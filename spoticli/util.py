@@ -12,7 +12,7 @@ from tabulate import tabulate
 from tqdm import tqdm
 
 
-def add_playlist_to_queue(sp_auth, uri: str, device: Optional[str]) -> None:
+def add_playlist_to_queue(sp_auth, uri: str, device: Optional[str] = None) -> None:
     """
     Adds all tracks from a playlist to the queue.
     """
@@ -63,11 +63,13 @@ def get_artist_names(res: dict[str, Any]) -> str:
     return artists_str
 
 
-def get_current_playback(res: dict[str, Any], display: bool) -> Optional[dict]:  # type: ignore
+def get_current_playback(res: dict[str, Any], display: bool) -> Optional[dict]:
     """
     Retrieves current playback information, parses the json response, and optionally displays
     information about the current playback.
     """
+
+    playback = None
 
     try:
         playback_items = res["item"]
@@ -102,6 +104,8 @@ def get_current_playback(res: dict[str, Any], display: bool) -> Optional[dict]: 
         return playback
     except TypeError:
         click.secho("Nothing is currently playing!", fg="red")
+
+    return playback
 
 
 def search_parse(res: dict[str, Any], k: str) -> tuple[list[dict[str, Any]], list[str]]:
@@ -167,7 +171,7 @@ def search_proceed(
     type_: str,
     results: list[dict[str, Any]],
     uris: list[str],
-    device: Optional[str],
+    device: Optional[str] = None,
 ) -> None:
 
     click.secho(tabulate(results, headers="keys", tablefmt="github"))
@@ -230,16 +234,21 @@ def search_proceed(
                 show_choices=False,
             )
         )
-        # index = int(index)
         play_or_queue = click.prompt(
             "Play now or add to queue?",
             type=Choice(("p", "q"), case_sensitive=False),
             show_choices=True,
         )
         if play_or_queue == "p":
-            sp_auth.start_playback(uris=[uris[index]], device_id=device)
+            play_content(
+                sp_auth=sp_auth,
+                uri=uris[index],
+                album_or_track=album_or_track,
+                device_id=device,
+            )
             sleep(0.5)
-            get_current_playback(sp_auth, display=True)
+            playback = sp_auth.current_playback()
+            get_current_playback(playback, display=True)
         else:
             if album_or_track == "a":
                 add_album_to_queue(sp_auth, uris[index], device=device)
@@ -247,6 +256,19 @@ def search_proceed(
                 sp_auth.add_to_queue(uris[index], device_id=device)
 
             click.secho("Successfully added to queue!", fg="green")
+
+
+def play_content(
+    sp_auth: Spotify,
+    uri: str,
+    album_or_track: str,
+    device_id: str = None,
+):
+
+    if album_or_track == "t":
+        sp_auth.start_playback(uris=[uri], device_id=device_id)
+    elif album_or_track == "a":
+        sp_auth.start_playback(context_uri=uri, device_id=device_id)
 
 
 def convert_ms(duration_ms: int) -> str:
