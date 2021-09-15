@@ -115,7 +115,7 @@ def previous_track(ctx, device):
 @click.pass_obj
 def next_track(ctx, device):
     """
-    Skips playback to the next track in the queue.
+    Skips playback to the next track in the queue
     """
     sp_auth = ctx
 

@@ -4,6 +4,11 @@ from click.types import Choice
 
 
 class CommaSeparatedIndices(Choice):
+    """
+    Extends the click.Choice class to add built-in handling for the input of comma-separated
+    indices.
+    """
+
     def convert(self, value, param, ctx):
         pattern = r"[^0-9, ]"
         search = re.search(pattern, value)
@@ -20,6 +25,11 @@ class CommaSeparatedIndices(Choice):
 
 
 class CommaSeparatedIndexRange(Choice):
+    """
+    Extends the click.Choice class to add built-in handling for the input of comma-separated index
+    ranges.
+    """
+
     def convert(self, value, param, ctx):
         pattern = r"[^0-9, ]"
         search = re.search(pattern, value)
