@@ -86,6 +86,8 @@ def get_current_playback(res: dict[str, Any], display: bool) -> Optional[dict]:
             "duration": convert_ms(playback_items["duration_ms"]),
             "volume": res["device"]["volume_percent"],
             "shuffle_state": res["shuffle_state"],
+            "resuming_disallowed": res["actions"]["disallows"].get("resuming"),
+            "pausing_disallowed": res["actions"]["disallows"].get("pausing"),
         }
 
         if display:
@@ -129,7 +131,7 @@ def search_parse(res: dict[str, Any], k: str) -> tuple[list[dict[str, Any]], lis
     elif k == "artists":
         results = []
         for i, item in enumerate(items):
-            results.append({"index": i, "artist": item["name"]})
+            results.append({"index": i, "artist": truncate(item["name"])})
             uris.append(item["uri"])
     elif k == "playlists":
         results = []
@@ -139,7 +141,7 @@ def search_parse(res: dict[str, Any], k: str) -> tuple[list[dict[str, Any]], lis
             results.append(
                 {
                     "index": i,
-                    "name": item["name"],
+                    "name": truncate(item["name"]),
                     "creator": item["owner"]["display_name"],
                     "description": truncate(desc),
                     "tracks": item["tracks"]["total"],
@@ -307,7 +309,7 @@ def convert_timestamp(timestamp: str) -> int:
 
 def convert_datetime(datetime_str: str) -> int:
     """
-    Converts a string representation of a datetime (YYYYMMDD HH:MM) to milliseconds.
+    Converts a string representation of a datetime (YYYYMMDD HH:MM) to milliseconds
     """
 
     datetime_pattern = "%Y%m%d %H:%M"

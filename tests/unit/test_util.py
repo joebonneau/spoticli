@@ -14,14 +14,12 @@ from spoticli.util import (
     truncate,
 )
 
-# from unittest.mock import Mock, patch
 
-
-@pytest.fixture
+@pytest.fixture(scope="module")
 def example_response_data():
     path = Path("tests/unit/artifacts/current_playback_res.json")
-    f = open(path)
-    res = json.load(f)
+    with open(path) as f:
+        res = json.load(f)
 
     return res
 

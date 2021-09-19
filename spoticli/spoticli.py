@@ -24,6 +24,7 @@ from spoticli.util import (
     parse_recent_playback,
     search_parse,
     search_proceed,
+    truncate,
 )
 
 SPOTIFY_USER_ID = os.environ.get("SPOTIFY_USER_ID")
@@ -59,7 +60,7 @@ def main(
     try:
         if CACHED_TOKEN_INFO:
             token_info = json.loads(CACHED_TOKEN_INFO)
-            auth = sp.Spotify(
+            sp_auth = sp.Spotify(
                 auth_manager=SpotifyOAuth(
                     scope=scope,
                     client_id=client_id,
@@ -69,7 +70,7 @@ def main(
                 )
             )
         else:
-            auth = sp.Spotify(
+            sp_auth = sp.Spotify(
                 auth_manager=SpotifyOAuth(
                     scope=scope,
                     client_id=client_id,
@@ -78,7 +79,7 @@ def main(
                 )
             )
 
-        ctx.obj = auth
+        ctx.obj = sp_auth
     except (SpotifyException, SpotifyOauthError) as e:
         # Spotipy uses SPOTIPY in its environment variables which might be confusing for user.
         message = str(e).replace("SPOTIPY", "SPOTIFY")
@@ -142,9 +143,13 @@ def pause_playback(ctx, device):
     sp_auth = ctx
 
     try:
-        sp_auth.pause_playback(device_id=device)
-
-        click.secho("Playback paused.")
+        current_playback = sp_auth.current_playback()
+        playback = get_current_playback(current_playback, display=False)
+        if playback["pausing_disallowed"]:
+            click.echo("No current playback to pause.")
+        else:
+            sp_auth.pause_playback(device_id=device)
+            click.secho("Playback paused.")
     except AttributeError:
         # AttributeError is thrown if authorization was unsuccessful, so show that error instead.
         pass
@@ -170,8 +175,14 @@ def start_playback(ctx, device, url):
             else:
                 sp_auth.start_playback(device_id=device, context_uri=url)
         else:
-            sp_auth.start_playback(device_id=device)
-            click.secho("Playback resumed.")
+            current_playback = sp_auth.current_playback()
+            playback = get_current_playback(current_playback, display=False)
+            if playback["resuming_disallowed"]:
+                click.secho("Playback is already active.")
+            else:
+                sp_auth.start_playback(device_id=device)
+                click.secho("Playback resumed.")
+
         sleep(0.5)
         current_playback = sp_auth.current_playback()
         get_current_playback(res=current_playback, display=True)
@@ -399,7 +410,7 @@ def get_random_saved_album(ctx, device):
 
         while True:
             album = saved_albums[rand_i]["album"]
-            artists = saved_albums[rand_i]["artists"]
+            artists = truncate(saved_albums[rand_i]["artists"])
             click.echo(
                 f"Selected album: {style(album, fg='blue')} by {style(artists, fg='green')}."
             )
