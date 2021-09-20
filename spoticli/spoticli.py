@@ -99,11 +99,16 @@ def previous_track(ctx, device):
     sp_auth = ctx
 
     try:
-        sp_auth.previous_track(device_id=device)
-        # delay to prevent fetching current playback before it updates on server side.
-        sleep(0.1)
-        current_playback = sp_auth.current_playback()
-        get_current_playback(res=current_playback, display=True)
+        playback_res = sp_auth.current_playback()
+        playback = get_current_playback(playback_res, display=False)
+        if playback["skip_prev_disallowed"]:
+            click.echo("No previous tracks are available to skip to.")
+        else:
+            sp_auth.previous_track(device_id=device)
+            # delay to prevent fetching current playback before it updates on server side.
+            sleep(0.1)
+            current_playback = sp_auth.current_playback()
+            get_current_playback(res=current_playback, display=True)
     except AttributeError:
         # AttributeError is thrown if authorization was unsuccessful, so show that error instead.
         pass
@@ -319,8 +324,9 @@ def decrease_volume(ctx, amount, device):
 
 @main.command("now")
 @click.option("-v", "--verbose", is_flag=True, help="displays additional info")
+@click.option("-u", "--url", default="t", help="displays current playback url")
 @click.pass_obj
-def now_playing(ctx, verbose):
+def now_playing(ctx, verbose, url):
     """
     Displays info about the current playback.
     """
@@ -333,9 +339,12 @@ def now_playing(ctx, verbose):
 
         if verbose:
             audio_features = sp_auth.audio_features(playback["track_uri"])
-            click.secho(style("Estimates:", underline=True))
             click.echo(f"BPM: {audio_features[0]['tempo']}")
             click.echo(f"Time signature: 4/{audio_features[0]['time_signature']}")
+        if url == "t":
+            click.echo(f"Track URL: {style(playback['track_url'], fg='magenta')}")
+        elif url == "a":
+            click.echo(f"Album URL: {style(playback['album_url'], fg='blue')}")
     except AttributeError:
         # AttributeError is thrown if authorization was unsuccessful, so show that error instead.
         pass
@@ -637,3 +646,23 @@ def add_to_queue(ctx, url, device):
         pass
     except SpotifyException as e:
         click.secho(str(e), fg="red")
+
+
+# @main.command("spa")
+# @click.argument("url", required=True)
+# @click.pass_obj
+# def save_playlist_albums(ctx, url):
+#     """
+#     Retrieves all albums from a given playlist and allows the user to add them to their library.
+#     """
+
+#     sp_auth = ctx
+
+#     try:
+#         check_url_format(url)
+#     except ValueError:
+#         click.secho("An invalid URL was provided.", fg="red")
+#     except AttributeError:
+#         pass
+#     except SpotifyException as e:
+#         click.secho(str(e), fg="red")

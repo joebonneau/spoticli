@@ -79,15 +79,18 @@ def get_current_playback(res: dict[str, Any], display: bool) -> Optional[dict]:
             "artists": get_artist_names(playback_album),
             "track_name": playback_items["name"],
             "track_uri": playback_items["uri"],
+            "track_url": playback_items["external_urls"].get("spotify"),
             "album_name": playback_album["name"],
             "album_type": playback_album["album_type"],
             "album_uri": playback_album["uri"],
+            "album_url": playback_album["external_urls"].get("spotify"),
             "release_date": playback_album["release_date"],
             "duration": convert_ms(playback_items["duration_ms"]),
             "volume": res["device"]["volume_percent"],
             "shuffle_state": res["shuffle_state"],
             "resuming_disallowed": res["actions"]["disallows"].get("resuming"),
             "pausing_disallowed": res["actions"]["disallows"].get("pausing"),
+            "skip_prev_disallowed": res["actions"]["disallows"].get("skipping_prev"),
         }
 
         if display:
