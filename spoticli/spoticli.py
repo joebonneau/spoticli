@@ -38,6 +38,7 @@ states = [
     "user-modify-playback-state",
     "user-read-playback-state",
     "user-library-read",
+    "user-library-modify",
     "playlist-read-private",
     "playlist-read-collaborative",
     "playlist-modify-public",
@@ -650,19 +651,83 @@ def add_to_queue(ctx, url, device):
 
 @main.command("spa")
 @click.argument("url", required=True)
+@click.option("-c", "--content", default="all")
 @click.pass_obj
-def save_playlist_albums(ctx, url):
+def save_playlist_albums(
+    ctx,
+    url,
+):
     """
     Retrieves all albums from a given playlist and allows the user to add them to their library.
     """
 
-    # sp_auth = ctx
+    sp_auth = ctx
 
-    # fields = "items(track(album(album_type,artists(name),uri,release_date)))"
+    fields = "items(track(album(album_type,artists(name),name,total_tracks,uri,release_date)))"
 
     try:
         check_url_format(url)
-        # playlist_items = sp_auth.playlist_items(playlist_id=url, fields=fields)
+        click.secho("Retrieving all albums and EPs from the playlist...", fg="magenta")
+        playlist_items = sp_auth.playlist_items(playlist_id=url, fields=fields)
+        album_items = []
+        album_uris = []
+        index = 0
+        for item in playlist_items["items"]:
+            item_album = item["track"]["album"]
+            if item_album["total_tracks"] > 1 and item_album["album_type"] == "single":
+                is_album_saved = sp_auth.current_user_saved_albums_contains(
+                    albums=[item_album["uri"]]
+                )
+                if not is_album_saved[0]:
+                    album_items.append(
+                        {
+                            "index": index,
+                            "artists": truncate(get_artist_names(item_album), 40),
+                            "album": truncate(item_album["name"], 40),
+                            "album_type": "EP",
+                            "total_tracks": item_album["total_tracks"],
+                            "release_date": item_album["release_date"],
+                        }
+                    )
+                    album_uris.append(item_album["uri"])
+                    index += 1
+            elif item_album["album_type"] == "album":
+                is_album_saved = sp_auth.current_user_saved_albums_contains(
+                    albums=[item_album["uri"]]
+                )
+                if not is_album_saved[0]:
+                    album_items.append(
+                        {
+                            "index": index,
+                            "artists": truncate(get_artist_names(item_album), 40),
+                            "album": truncate(item_album["name"], 40),
+                            "album_type": item_album["album_type"],
+                            "total_tracks": item_album["total_tracks"],
+                            "release_date": item_album["release_date"],
+                        }
+                    )
+                    album_uris.append(item_album["uri"])
+                    index += 1
+        click.echo(tabulate(album_items, headers="keys", tablefmt="github"))
+        add_all_albums = click.prompt(
+            "Add all albums to user library?",
+            type=Choice(("y", "n")),
+            show_choices=True,
+        )
+
+        if add_all_albums == "y":
+            sp_auth.current_user_saved_albums_add(albums=album_uris)
+        else:
+            album_selection = click.prompt(
+                "Enter the indices of albums to add (separated by a comma)",
+                type=CommaSeparatedIndices(range(len(album_uris))),
+                show_choices=True,
+            )
+
+            album_sublist = [album_uris[i] for i in album_selection]
+            sp_auth.current_user_saved_albums_add(albums=album_sublist)
+
+        click.secho("Albums successfully added to user library!", fg="green")
     except ValueError:
         click.secho("An invalid URL was provided.", fg="red")
     except AttributeError:
