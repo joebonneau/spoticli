@@ -648,21 +648,24 @@ def add_to_queue(ctx, url, device):
         click.secho(str(e), fg="red")
 
 
-# @main.command("spa")
-# @click.argument("url", required=True)
-# @click.pass_obj
-# def save_playlist_albums(ctx, url):
-#     """
-#     Retrieves all albums from a given playlist and allows the user to add them to their library.
-#     """
+@main.command("spa")
+@click.argument("url", required=True)
+@click.pass_obj
+def save_playlist_albums(ctx, url):
+    """
+    Retrieves all albums from a given playlist and allows the user to add them to their library.
+    """
 
-#     sp_auth = ctx
+    # sp_auth = ctx
 
-#     try:
-#         check_url_format(url)
-#     except ValueError:
-#         click.secho("An invalid URL was provided.", fg="red")
-#     except AttributeError:
-#         pass
-#     except SpotifyException as e:
-#         click.secho(str(e), fg="red")
+    # fields = "items(track(album(album_type,artists(name),uri,release_date)))"
+
+    try:
+        check_url_format(url)
+        # playlist_items = sp_auth.playlist_items(playlist_id=url, fields=fields)
+    except ValueError:
+        click.secho("An invalid URL was provided.", fg="red")
+    except AttributeError:
+        pass
+    except SpotifyException as e:
+        click.secho(str(e), fg="red")
