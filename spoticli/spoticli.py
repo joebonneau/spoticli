@@ -1,11 +1,14 @@
 import json
 import os
 import random
+from configparser import ConfigParser
+from pathlib import Path
 from time import sleep
 from typing import Optional
 
 import click
 import spotipy as sp
+from appdirs import user_config_dir
 from click.termui import style
 from click.types import Choice
 from spotipy.cache_handler import MemoryCacheHandler
@@ -19,6 +22,7 @@ from spoticli.util import (
     check_url_format,
     convert_datetime,
     convert_timestamp,
+    generate_config,
     get_artist_names,
     get_current_playback,
     parse_recent_playback,
@@ -48,17 +52,24 @@ states = [
 STATE_STR = " ".join(states)
 
 
-@click.group()
+@click.group(invoke_without_command=True)
+@click.option("-c", "--config", is_flag=True)
 @click.pass_context
 def main(
     ctx,
+    config,
     scope: Optional[str] = STATE_STR,
     client_id: Optional[str] = SPOTIFY_CLIENT_ID,
     client_secret: Optional[str] = SPOTIFY_CLIENT_SECRET,
     redirect_uri: Optional[str] = SPOTIFY_REDIRECT_URI,
 ):
+    config_dir = Path(user_config_dir()) / "spoticli"
+    config_file = config_dir / "spoticli.ini"
+    sp_auth = None
 
     try:
+        if config:
+            generate_config()
         if CACHED_TOKEN_INFO:
             token_info = json.loads(CACHED_TOKEN_INFO)
             sp_auth = sp.Spotify(
@@ -68,6 +79,22 @@ def main(
                     client_secret=client_secret,
                     redirect_uri=redirect_uri,
                     cache_handler=MemoryCacheHandler(token_info=token_info),
+                )
+            )
+        elif config_file.exists():
+            config = ConfigParser()
+            config.read(config_file)
+
+            client_id = config["auth"]["SPOTIFY_CLIENT_ID"]
+            client_secret = config["auth"]["SPOTIFY_CLIENT_SECRET"]
+            redirect_uri = config["auth"]["SPOTIFY_REDIRECT_URI"]
+
+            sp_auth = sp.Spotify(
+                auth_manager=SpotifyOAuth(
+                    scope=scope,
+                    client_id=client_id,
+                    client_secret=client_secret,
+                    redirect_uri=redirect_uri,
                 )
             )
         else:
@@ -81,6 +108,11 @@ def main(
             )
 
         ctx.obj = sp_auth
+    except KeyError:
+        click.secho(
+            "Config file exists but is set up improperly. Try recreating the config file.",
+            fg="red",
+        )
     except (SpotifyException, SpotifyOauthError) as e:
         # Spotipy uses SPOTIPY in its environment variables which might be confusing for user.
         message = str(e).replace("SPOTIPY", "SPOTIFY")
@@ -175,11 +207,11 @@ def start_playback(ctx, device, url):
 
     try:
         if url:
+            valid_url = check_url_format(url)
             if "track" in url:
-                check_url_format(url)
-                sp_auth.start_playback(device_id=device, uris=[url])
+                sp_auth.start_playback(device_id=device, uris=[valid_url])
             else:
-                sp_auth.start_playback(device_id=device, context_uri=url)
+                sp_auth.start_playback(device_id=device, context_uri=valid_url)
         else:
             current_playback = sp_auth.current_playback()
             playback = get_current_playback(current_playback, display=False)
@@ -192,6 +224,9 @@ def start_playback(ctx, device, url):
         sleep(0.5)
         current_playback = sp_auth.current_playback()
         get_current_playback(res=current_playback, display=True)
+    except TypeError:
+        # the get_current_playback function will have already displayed the error message
+        pass
     except ValueError:
         click.secho("Invalid URL was provided.", fg="red")
     except AttributeError:
@@ -488,7 +523,7 @@ def add_current_track_to_playlists(ctx):
         click.echo(tabulate(display_dict, headers="keys", tablefmt="github"))
 
         indices = click.prompt(
-            "Enter the indices of the playlists to add the track to separated by commas.",
+            "Enter the indices of the playlists to add the track to separated by commas",
             type=CommaSeparatedIndices([str(i) for i in positions]),
             show_choices=False,
         )
@@ -635,11 +670,11 @@ def add_to_queue(ctx, url, device):
     sp_auth = ctx
 
     try:
-        check_url_format(url)
+        valid_url = check_url_format(url)
         if "album" in url:
-            add_album_to_queue(sp_auth, url, device)
+            add_album_to_queue(sp_auth, valid_url, device)
         else:
-            sp_auth.add_to_queue(url, device)
+            sp_auth.add_to_queue(valid_url, device)
             click.secho("Track successfully added to queue.", fg="green")
     except ValueError:
         click.secho("An invalid URL was provided.", fg="red")
@@ -651,7 +686,7 @@ def add_to_queue(ctx, url, device):
 
 @main.command("spa")
 @click.argument("url", required=True)
-@click.option("-c", "--content", default="all")
+# @click.option("-c", "--content", default="all")
 @click.pass_obj
 def save_playlist_albums(
     ctx,
@@ -720,8 +755,8 @@ def save_playlist_albums(
         else:
             album_selection = click.prompt(
                 "Enter the indices of albums to add (separated by a comma)",
-                type=CommaSeparatedIndices(range(len(album_uris))),
-                show_choices=True,
+                type=CommaSeparatedIndices([str(i) for i in range(len(album_uris))]),
+                show_choices=False,
             )
 
             album_sublist = [album_uris[i] for i in album_selection]

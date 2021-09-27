@@ -1,10 +1,14 @@
 import re
 import time
+from configparser import ConfigParser
 from datetime import datetime
+from os import mkdir
+from pathlib import Path
 from time import sleep
 from typing import Any, Generator, Optional
 
 import click
+from appdirs import user_config_dir
 from click.termui import style
 from click.types import Choice
 from spotipy.client import Spotify
@@ -105,8 +109,6 @@ def get_current_playback(res: dict[str, Any], display: bool) -> Optional[dict]:
             click.echo(
                 f"Duration: {playback['duration']}, Released: {playback['release_date']}"
             )
-
-        return playback
     except TypeError:
         click.secho("Nothing is currently playing!", fg="red")
 
@@ -332,7 +334,7 @@ def truncate(name: str, length: int = 50) -> str:
     return name
 
 
-def check_url_format(url: str) -> Optional[bool]:
+def check_url_format(url: str) -> str:
     """
     Performs a simple URL validation check. Definitely won't catch all errors, but will eliminate most.
     """
@@ -343,7 +345,7 @@ def check_url_format(url: str) -> Optional[bool]:
     if not match:
         raise ValueError
 
-    return True
+    return "https://" + match.group()
 
 
 def parse_recent_playback(
@@ -444,3 +446,34 @@ def parse_artist_albums(
     choices = (str(num) for num in range(len(albums)))
 
     return uris, choices
+
+
+def generate_config():
+
+    config_dir = Path(user_config_dir()) / "spoticli"
+    config_file = config_dir / "spoticli.ini"
+    config = ConfigParser()
+
+    if not config_dir.exists():
+        mkdir(config_dir)
+
+    client_id = click.prompt(
+        "Provide the Spotify client ID from the developer dashboard"
+    )
+    client_secret = click.prompt(
+        "Provide the Spotify client secret from the developer dashboard"
+    )
+    redirect_uri = click.prompt("Provide the redirect uri specified in the Spotify app")
+    user_id = click.prompt("Provide the Spotify user ID")
+
+    config["auth"] = {
+        "SPOTIFY_CLIENT_ID": client_id,
+        "SPOTIFY_CLIENT_SECRET": client_secret,
+        "SPOTIFY_USER_ID": user_id,
+        "SPOTIFY_REDIRECT_URI": redirect_uri,
+    }
+
+    with open(config_file, "w") as cfg:
+        config.write(cfg)
+
+    click.secho("Config file created successfully!", fg="green")
