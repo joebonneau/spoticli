@@ -17,12 +17,11 @@ from spotipy.oauth2 import SpotifyOAuth, SpotifyOauthError
 from tabulate import tabulate
 
 from spoticli.types import CommaSeparatedIndexRange, CommaSeparatedIndices
-from spoticli.util import (
+from spoticli.util import (  # generate_config,
     add_album_to_queue,
     check_url_format,
     convert_datetime,
     convert_timestamp,
-    generate_config,
     get_artist_names,
     get_current_playback,
     parse_recent_playback,
@@ -68,8 +67,8 @@ def main(
     sp_auth = None
 
     try:
-        if config:
-            generate_config()
+        # if config:
+        #     generate_config()
         if CACHED_TOKEN_INFO:
             token_info = json.loads(CACHED_TOKEN_INFO)
             sp_auth = sp.Spotify(
