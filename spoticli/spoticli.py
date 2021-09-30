@@ -63,7 +63,7 @@ def main(
     client_secret: Optional[str] = SPOTIFY_CLIENT_SECRET,
     redirect_uri: Optional[str] = SPOTIFY_REDIRECT_URI,
 ):
-    config_dir = Path(user_config_dir()) / "spoticli"
+    config_dir = Path(user_config_dir("spoticli", "joebonneau"))
     config_file = config_dir / "spoticli.ini"
     sp_auth = None
 
@@ -257,6 +257,14 @@ def create_playlist(ctx, pub, c, d, name):
         click.secho(style("Collaborative playlists can only be private.", fg="red"))
     else:
         try:
+            config_dir = Path(user_config_dir("spoticli", "joebonneau"))
+            config_file = config_dir / "spoticli.ini"
+
+            if config_file.exists():
+                config = ConfigParser()
+                config.read(config_file)
+                SPOTIFY_USER_ID = config["auth"]["SPOTIFY_USER_ID"]
+
             sp_auth.user_playlist_create(
                 user=SPOTIFY_USER_ID,
                 name=name,
@@ -534,11 +542,10 @@ def add_current_track_to_playlists(ctx):
                 items=[playback["track_uri"]],
             )
 
-        click.secho(
-            "The track was successfully added to all specified playlists!", fg="green"
+        click.echo(
+            f"{style(playback['track_name'], fg='magenta')} {style('was successfully added to all specified playlists!', fg='green')}"
         )
-    # except TypeError:
-    #     click.secho("Nothing is currently playing!", fg="red")
+
     except AttributeError:
         # AttributeError is thrown if authorization was unsuccessful, so show that error instead.
         pass
@@ -580,6 +587,15 @@ def recently_played(ctx, after, limit, device):
                 show_choices=False,
             )
             playlist_name = click.prompt("Enter the playlist name")
+
+            config_dir = Path(user_config_dir("spoticli", "joebonneau"))
+            config_file = config_dir / "spoticli.ini"
+
+            if config_file.exists():
+                config = ConfigParser()
+                config.read(config_file)
+                SPOTIFY_USER_ID = config["auth"]["SPOTIFY_USER_ID"]
+
             sp_auth.user_playlist_create(user=SPOTIFY_USER_ID, name=playlist_name)
             playlist_res = sp_auth.current_user_playlists(limit=1)
             playlist_uri = playlist_res["items"][0]["uri"]
