@@ -56,7 +56,7 @@ STATE_STR = " ".join(states)
 @click.pass_context
 def main(
     ctx,
-    config,
+    # config,
     scope: Optional[str] = STATE_STR,
     client_id: Optional[str] = SPOTIFY_CLIENT_ID,
     client_secret: Optional[str] = SPOTIFY_CLIENT_SECRET,
