@@ -52,11 +52,9 @@ STATE_STR = " ".join(states)
 
 
 @click.group(invoke_without_command=True)
-@click.option("-c", "--config", is_flag=True)
 @click.pass_context
 def main(
     ctx,
-    # config,
     scope: Optional[str] = STATE_STR,
     client_id: Optional[str] = SPOTIFY_CLIENT_ID,
     client_secret: Optional[str] = SPOTIFY_CLIENT_SECRET,
@@ -67,8 +65,6 @@ def main(
     sp_auth = None
 
     try:
-        # if config:
-        #     generate_config()
         if CACHED_TOKEN_INFO:
             token_info = json.loads(CACHED_TOKEN_INFO)
             sp_auth = sp.Spotify(
