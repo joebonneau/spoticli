@@ -51,7 +51,7 @@ states = [
 STATE_STR = " ".join(states)
 
 
-@click.group(invoke_without_command=True)
+@click.group()
 @click.pass_context
 def main(
     ctx,
@@ -60,8 +60,8 @@ def main(
     client_secret: Optional[str] = SPOTIFY_CLIENT_SECRET,
     redirect_uri: Optional[str] = SPOTIFY_REDIRECT_URI,
 ):
-    config_dir = Path(user_config_dir("spoticli", "joebonneau"))
-    config_file = config_dir / "spoticli.ini"
+    # config_dir = Path(user_config_dir("spoticli", "joebonneau"))
+    # config_file = config_dir / "spoticli.ini"
     sp_auth = None
 
     try:
@@ -76,22 +76,22 @@ def main(
                     cache_handler=MemoryCacheHandler(token_info=token_info),
                 )
             )
-        elif config_file.exists():
-            config = ConfigParser()
-            config.read(config_file)
+        # elif config_file.exists():
+        #     config = ConfigParser()
+        #     config.read(config_file)
 
-            client_id = config["auth"]["SPOTIFY_CLIENT_ID"]
-            client_secret = config["auth"]["SPOTIFY_CLIENT_SECRET"]
-            redirect_uri = config["auth"]["SPOTIFY_REDIRECT_URI"]
+        #     client_id = config["auth"]["SPOTIFY_CLIENT_ID"]
+        #     client_secret = config["auth"]["SPOTIFY_CLIENT_SECRET"]
+        #     redirect_uri = config["auth"]["SPOTIFY_REDIRECT_URI"]
 
-            sp_auth = sp.Spotify(
-                auth_manager=SpotifyOAuth(
-                    scope=scope,
-                    client_id=client_id,
-                    client_secret=client_secret,
-                    redirect_uri=redirect_uri,
-                )
-            )
+        #     sp_auth = sp.Spotify(
+        #         auth_manager=SpotifyOAuth(
+        #             scope=scope,
+        #             client_id=client_id,
+        #             client_secret=client_secret,
+        #             redirect_uri=redirect_uri,
+        #         )
+        #     )
         else:
             sp_auth = sp.Spotify(
                 auth_manager=SpotifyOAuth(
