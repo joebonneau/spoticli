@@ -59,13 +59,11 @@ class SpotifyCredential(ParamType):
     """
 
     def convert(self, value, param, ctx):
-        # Use regex to confirm only numbers and commas were provided
-        if len(value) != 32:
-            self.fail("Input must be 32 characters long")
-        pattern = r"\w{32}"
+        # Use regex to confirm only numbers and letters a-f were provided
+        pattern = r"[0-9a-f]{32}"
         search = re.search(pattern, value)
-        # Fail the input if invalid characters were found
-        if search is None:
-            self.fail("Input contains invalid characters")
+        # Fail the input if invalid characters were found or length not matching
+        if not search:
+            self.fail(f"{value} is not a 32-character hexadecimal string", param, ctx)
 
-        return search.group()
+        return value

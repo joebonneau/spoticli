@@ -19,6 +19,7 @@ from tabulate import tabulate
 from spoticli.types import CommaSeparatedIndexRange, CommaSeparatedIndices
 from spoticli.util import (
     add_album_to_queue,
+    check_devices,
     check_url_format,
     convert_datetime,
     convert_timestamp,
@@ -53,20 +54,6 @@ STATE_STR = " ".join(states)
 
 
 @click.group()
-def config():
-    pass
-
-
-@config.command("cfg")
-def cfg():
-    """
-    Generates a configuration file for Spotify credentials.
-    """
-
-    generate_config()
-
-
-@click.group()
 @click.pass_context
 def main(
     ctx,
@@ -81,44 +68,53 @@ def main(
     config_file = config_dir / "spoticli.ini"
 
     try:
-        if CACHED_TOKEN_INFO:
-            token_info = json.loads(CACHED_TOKEN_INFO)
-            sp_auth = sp.Spotify(
-                auth_manager=SpotifyOAuth(
-                    scope=scope,
-                    client_id=client_id,
-                    client_secret=client_secret,
-                    redirect_uri=redirect_uri,
-                    cache_handler=MemoryCacheHandler(token_info=token_info),
+        if ctx.invoked_subcommand != "cfg":
+            if CACHED_TOKEN_INFO:
+                token_info = json.loads(CACHED_TOKEN_INFO)
+                sp_auth = sp.Spotify(
+                    auth_manager=SpotifyOAuth(
+                        scope=scope,
+                        client_id=client_id,
+                        client_secret=client_secret,
+                        redirect_uri=redirect_uri,
+                        cache_handler=MemoryCacheHandler(token_info=token_info),
+                    )
                 )
-            )
-        elif config_file.exists():
-            config = ConfigParser()
-            config.read(config_file)
+            elif config_file.exists():
+                config = ConfigParser()
+                config.read(config_file)
 
-            client_id = config["auth"]["SPOTIFY_CLIENT_ID"]
-            client_secret = config["auth"]["SPOTIFY_CLIENT_SECRET"]
-            redirect_uri = config["auth"]["SPOTIFY_REDIRECT_URI"]
+                client_id = config["auth"]["SPOTIFY_CLIENT_ID"]
+                client_secret = config["auth"]["SPOTIFY_CLIENT_SECRET"]
+                redirect_uri = config["auth"]["SPOTIFY_REDIRECT_URI"]
 
-            sp_auth = sp.Spotify(
-                auth_manager=SpotifyOAuth(
-                    scope=scope,
-                    client_id=client_id,
-                    client_secret=client_secret,
-                    redirect_uri=redirect_uri,
+                sp_auth = sp.Spotify(
+                    auth_manager=SpotifyOAuth(
+                        scope=scope,
+                        client_id=client_id,
+                        client_secret=client_secret,
+                        redirect_uri=redirect_uri,
+                    )
                 )
-            )
-        else:
-            sp_auth = sp.Spotify(
-                auth_manager=SpotifyOAuth(
-                    scope=scope,
-                    client_id=client_id,
-                    client_secret=client_secret,
-                    redirect_uri=redirect_uri,
+            else:
+                sp_auth = sp.Spotify(
+                    auth_manager=SpotifyOAuth(
+                        scope=scope,
+                        client_id=client_id,
+                        client_secret=client_secret,
+                        redirect_uri=redirect_uri,
+                    )
                 )
-            )
 
-        ctx.obj = sp_auth
+            devices_res = sp_auth.devices()
+
+            device_id = check_devices(devices_res)
+
+            if device_id:
+                sp_auth.transfer_playback(device_id=device_id, force_play=True)
+
+            ctx.obj = {"sp_auth": sp_auth, "device_id": device_id}
+
     except KeyError:
         click.secho(
             "Config file exists but is set up improperly. Try recreating the config file.",
@@ -133,6 +129,14 @@ def main(
         )
 
 
+@main.command("cfg")
+def cfg():
+    """
+    Generates a configuration file for Spotify credentials.
+    """
+    generate_config()
+
+
 @main.command("prev")
 @click.option("--device", envvar="SPOTIFY_DEVICE_ID")
 @click.pass_obj
@@ -140,7 +144,10 @@ def previous_track(ctx, device):
     """
     Skips playback to the track played previous to the current track.
     """
-    sp_auth = ctx
+    sp_auth = ctx["sp_auth"]
+
+    if not device:
+        device = ctx["device_id"]
 
     try:
         playback_res = sp_auth.current_playback()
@@ -167,7 +174,10 @@ def next_track(ctx, device):
     """
     Skips playback to the next track in the queue
     """
-    sp_auth = ctx
+    sp_auth = ctx["sp_auth"]
+
+    if not device:
+        device = ctx["device_id"]
 
     try:
         sp_auth.next_track(device_id=device)
@@ -189,12 +199,15 @@ def pause_playback(ctx, device):
     """
     Pauses playback.
     """
-    sp_auth = ctx
+    sp_auth = ctx["sp_auth"]
+
+    if not device:
+        device = ctx["device_id"]
 
     try:
         current_playback = sp_auth.current_playback()
         playback = get_current_playback(current_playback, display=False)
-        if playback["pausing_disallowed"]:
+        if playback.get("pausing_disallowed"):
             click.echo("No current playback to pause.")
         else:
             sp_auth.pause_playback(device_id=device)
@@ -214,7 +227,10 @@ def start_playback(ctx, device, url):
     """
     Resumes playback on the active track.
     """
-    sp_auth = ctx
+    sp_auth = ctx["sp_auth"]
+
+    if not device:
+        device = ctx["device_id"]
 
     try:
         if url:
@@ -227,7 +243,8 @@ def start_playback(ctx, device, url):
             current_playback = sp_auth.current_playback()
             playback = get_current_playback(current_playback, display=False)
             if playback["resuming_disallowed"]:
-                click.secho("Playback is already active.")
+                pass
+                # click.secho("Playback is already active.")
             else:
                 sp_auth.start_playback(device_id=device)
                 click.secho("Playback resumed.")
@@ -263,7 +280,7 @@ def create_playlist(ctx, pub, c, d, name, user):
     Creates a new playlist.
     """
 
-    sp_auth = ctx
+    sp_auth = ctx["sp_auth"]
 
     if all((pub, c)):
         click.secho(style("Collaborative playlists can only be private.", fg="red"))
@@ -304,7 +321,10 @@ def seek(ctx, timestamp, device):
     Timestamp format is MM:SS
     """
 
-    sp_auth = ctx
+    sp_auth = ctx["sp_auth"]
+
+    if not device:
+        device = ctx["device_id"]
 
     try:
         timestamp_in_ms = convert_timestamp(timestamp)
@@ -329,7 +349,10 @@ def increase_volume(ctx, amount, device):
     Increases volume by the increment specified (defaults to 10%).
     """
 
-    sp_auth = ctx
+    sp_auth = ctx["sp_auth"]
+
+    if not device:
+        device = ctx["device_id"]
 
     try:
         current_playback = sp_auth.current_playback()
@@ -358,7 +381,10 @@ def decrease_volume(ctx, amount, device):
     Decreases volume by the increment specified (defaults to 10%).
     """
 
-    sp_auth = ctx
+    sp_auth = ctx["sp_auth"]
+
+    if not device:
+        device = ctx["device_id"]
 
     try:
         current_playback = sp_auth.current_playback()
@@ -387,7 +413,7 @@ def now_playing(ctx, verbose, url):
     Displays info about the current playback.
     """
 
-    sp_auth = ctx
+    sp_auth = ctx["sp_auth"]
 
     try:
         current_playback = sp_auth.current_playback()
@@ -417,7 +443,10 @@ def toggle_shuffle(ctx, on, device):
     Toggles shuffling on or off.
     """
 
-    sp_auth = ctx
+    sp_auth = ctx["sp_auth"]
+
+    if not device:
+        device = ctx["device_id"]
 
     try:
         if on:
@@ -444,7 +473,10 @@ def get_random_saved_album(ctx, device):
 
     # Only 50 albums can be retrieved at a time, so make as many requests as necessary to retrieve
     # all in library.
-    sp_auth = ctx
+    sp_auth = ctx["sp_auth"]
+
+    if not device:
+        device = ctx["device_id"]
 
     try:
         saved_albums = []
@@ -518,7 +550,7 @@ def add_current_track_to_playlists(ctx):
     Adds the current track in playback to one or more playlist(s).
     """
 
-    sp_auth = ctx
+    sp_auth = ctx["sp_auth"]
 
     try:
         current_playback = sp_auth.current_playback()
@@ -576,7 +608,10 @@ def recently_played(ctx, after, limit, device, user):
     Displays information about recently played tracks.
     """
 
-    sp_auth = ctx
+    sp_auth = ctx["sp_auth"]
+
+    if not device:
+        device = ctx["device_id"]
 
     try:
         if after:
@@ -672,9 +707,12 @@ def recently_played(ctx, after, limit, device, user):
 @click.pass_obj
 def search(ctx, term, type_, device):
     """
-    Search for specific content.
+    Queries Spotify's databases.
     """
-    sp_auth = ctx
+    sp_auth = ctx["sp_auth"]
+
+    if not device:
+        device = ctx["device_id"]
 
     k = type_ + "s"
     try:
@@ -696,7 +734,10 @@ def add_to_queue(ctx, url, device):
     Adds a track or album to the queue from a Spotify URL.
     """
 
-    sp_auth = ctx
+    sp_auth = ctx["sp_auth"]
+
+    if not device:
+        device = ctx["device_id"]
 
     try:
         valid_url = check_url_format(url)
@@ -722,10 +763,10 @@ def save_playlist_albums(
     url,
 ):
     """
-    Retrieve albums from a given playlist and add to library.
+    Retrieves all albums from a given playlist and allows the user to add them to their library.
     """
 
-    sp_auth = ctx
+    sp_auth = ctx["sp_auth"]
 
     fields = "items(track(album(album_type,artists(name),name,total_tracks,uri,release_date)))"
 
@@ -800,4 +841,4 @@ def save_playlist_albums(
         click.secho(str(e), fg="red")
 
 
-cli = click.CommandCollection(sources=[main, config])
+# cli = click.CommandCollection(sources=[main, config])
