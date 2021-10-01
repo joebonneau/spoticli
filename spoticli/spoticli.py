@@ -242,7 +242,7 @@ def start_playback(ctx, device, url):
 @click.option("--user", envvar=SPOTIFY_USER_ID)
 @click.argument("name", required=True)
 @click.pass_obj
-def create_playlist(ctx, pub, c, d, name, user_id):
+def create_playlist(ctx, pub, c, d, name, user):
     """
     Creates a new playlist.
     """
@@ -259,10 +259,10 @@ def create_playlist(ctx, pub, c, d, name, user_id):
             if config_file.exists():
                 config = ConfigParser()
                 config.read(config_file)
-                user_id = config["auth"]["SPOTIFY_USER_ID"]
+                user = config["auth"]["SPOTIFY_USER_ID"]
 
             sp_auth.user_playlist_create(
-                user=user_id,
+                user=user,
                 name=name,
                 public=pub,
                 collaborative=c,
@@ -555,7 +555,7 @@ def add_current_track_to_playlists(ctx):
 @click.option("--device", envvar="SPOTIFY_DEVICE_ID")
 @click.option("--user", envvar=SPOTIFY_USER_ID)
 @click.pass_obj
-def recently_played(ctx, after, limit, device, user_id):
+def recently_played(ctx, after, limit, device, user):
     """
     Displays information about recently played tracks.
     """
@@ -591,9 +591,9 @@ def recently_played(ctx, after, limit, device, user_id):
             if config_file.exists():
                 config = ConfigParser()
                 config.read(config_file)
-                user_id = config["auth"]["SPOTIFY_USER_ID"]
+                user = config["auth"]["SPOTIFY_USER_ID"]
 
-            sp_auth.user_playlist_create(user=user_id, name=playlist_name)
+            sp_auth.user_playlist_create(user=user, name=playlist_name)
             playlist_res = sp_auth.current_user_playlists(limit=1)
             playlist_uri = playlist_res["items"][0]["uri"]
             sp_auth.playlist_add_items(
