@@ -4,9 +4,16 @@ from click.types import Choice
 
 
 class CommaSeparatedIndices(Choice):
+    """
+    Extends the click.Choice type class to add built-in handling for the input of comma-separated
+    indices. Accepts input as <int, int, ...>.
+    """
+
     def convert(self, value, param, ctx):
+        # Use regex to confirm only numbers and commas were provided
         pattern = r"[^0-9, ]"
         search = re.search(pattern, value)
+        # Fail the input if invalid characters were found
         if search is not None:
             self.fail("Input %s contains invalid characters" % value, param, ctx)
         choices = value.split(",")
@@ -15,11 +22,17 @@ class CommaSeparatedIndices(Choice):
             if choice.strip() not in self.choices:
                 self.fail(f"{choice.strip()} is an invalid index")
             else:
+                # Return the inputs as integers for convenience
                 selection.append(int(choice))
         return selection
 
 
 class CommaSeparatedIndexRange(Choice):
+    """
+    Extends the click.Choice class to add built-in handling for the input of comma-separated index
+    ranges.
+    """
+
     def convert(self, value, param, ctx):
         pattern = r"[^0-9, ]"
         search = re.search(pattern, value)

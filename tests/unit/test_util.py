@@ -14,14 +14,12 @@ from spoticli.util import (
     truncate,
 )
 
-# from unittest.mock import Mock, patch
 
-
-@pytest.fixture
+@pytest.fixture(scope="module")
 def example_response_data():
     path = Path("tests/unit/artifacts/current_playback_res.json")
-    f = open(path)
-    res = json.load(f)
+    with open(path) as f:
+        res = json.load(f)
 
     return res
 
@@ -38,16 +36,21 @@ def test_get_current_playback(example_response_data):
     playback = get_current_playback(example_response_data, False)
 
     response = {
-        "artists": "Durand Jones & The Indications",
-        "track_name": "Love Will Work It Out",
-        "track_uri": "spotify:track:6qXQYEZeRSgmAvDm4ZEAUZ",
         "album_name": "Private Space",
         "album_type": "album",
         "album_uri": "spotify:album:4ogV05oprfriua7n9icbvN",
-        "release_date": "2021-07-30",
+        "album_url": "https://open.spotify.com/album/4ogV05oprfriua7n9icbvN",
+        "artists": "Durand Jones & The Indications",
         "duration": "3:45",
-        "volume": 100,
+        "pausing_disallowed": None,
+        "release_date": "2021-07-30",
+        "resuming_disallowed": True,
         "shuffle_state": False,
+        "skip_prev_disallowed": True,
+        "track_name": "Love Will Work It Out",
+        "track_uri": "spotify:track:6qXQYEZeRSgmAvDm4ZEAUZ",
+        "track_url": "https://open.spotify.com/track/6qXQYEZeRSgmAvDm4ZEAUZ",
+        "volume": 100,
     }
 
     assert playback == response

@@ -1,11 +1,14 @@
 import json
 import os
 import random
+from configparser import ConfigParser
+from pathlib import Path
 from time import sleep
 from typing import Optional
 
 import click
 import spotipy as sp
+from appdirs import user_config_dir
 from click.termui import style
 from click.types import Choice
 from spotipy.cache_handler import MemoryCacheHandler
@@ -14,7 +17,7 @@ from spotipy.oauth2 import SpotifyOAuth, SpotifyOauthError
 from tabulate import tabulate
 
 from spoticli.types import CommaSeparatedIndexRange, CommaSeparatedIndices
-from spoticli.util import (
+from spoticli.util import (  # generate_config,
     add_album_to_queue,
     check_url_format,
     convert_datetime,
@@ -24,6 +27,7 @@ from spoticli.util import (
     parse_recent_playback,
     search_parse,
     search_proceed,
+    truncate,
 )
 
 SPOTIFY_USER_ID = os.environ.get("SPOTIFY_USER_ID")
@@ -37,6 +41,7 @@ states = [
     "user-modify-playback-state",
     "user-read-playback-state",
     "user-library-read",
+    "user-library-modify",
     "playlist-read-private",
     "playlist-read-collaborative",
     "playlist-modify-public",
@@ -55,11 +60,14 @@ def main(
     client_secret: Optional[str] = SPOTIFY_CLIENT_SECRET,
     redirect_uri: Optional[str] = SPOTIFY_REDIRECT_URI,
 ):
+    # config_dir = Path(user_config_dir("spoticli", "joebonneau"))
+    # config_file = config_dir / "spoticli.ini"
+    sp_auth = None
 
     try:
         if CACHED_TOKEN_INFO:
             token_info = json.loads(CACHED_TOKEN_INFO)
-            auth = sp.Spotify(
+            sp_auth = sp.Spotify(
                 auth_manager=SpotifyOAuth(
                     scope=scope,
                     client_id=client_id,
@@ -68,8 +76,24 @@ def main(
                     cache_handler=MemoryCacheHandler(token_info=token_info),
                 )
             )
+        # elif config_file.exists():
+        #     config = ConfigParser()
+        #     config.read(config_file)
+
+        #     client_id = config["auth"]["SPOTIFY_CLIENT_ID"]
+        #     client_secret = config["auth"]["SPOTIFY_CLIENT_SECRET"]
+        #     redirect_uri = config["auth"]["SPOTIFY_REDIRECT_URI"]
+
+        #     sp_auth = sp.Spotify(
+        #         auth_manager=SpotifyOAuth(
+        #             scope=scope,
+        #             client_id=client_id,
+        #             client_secret=client_secret,
+        #             redirect_uri=redirect_uri,
+        #         )
+        #     )
         else:
-            auth = sp.Spotify(
+            sp_auth = sp.Spotify(
                 auth_manager=SpotifyOAuth(
                     scope=scope,
                     client_id=client_id,
@@ -78,7 +102,12 @@ def main(
                 )
             )
 
-        ctx.obj = auth
+        ctx.obj = sp_auth
+    except KeyError:
+        click.secho(
+            "Config file exists but is set up improperly. Try recreating the config file.",
+            fg="red",
+        )
     except (SpotifyException, SpotifyOauthError) as e:
         # Spotipy uses SPOTIPY in its environment variables which might be confusing for user.
         message = str(e).replace("SPOTIPY", "SPOTIFY")
@@ -98,11 +127,16 @@ def previous_track(ctx, device):
     sp_auth = ctx
 
     try:
-        sp_auth.previous_track(device_id=device)
-        # delay to prevent fetching current playback before it updates on server side.
-        sleep(0.1)
-        current_playback = sp_auth.current_playback()
-        get_current_playback(res=current_playback, display=True)
+        playback_res = sp_auth.current_playback()
+        playback = get_current_playback(playback_res, display=False)
+        if playback["skip_prev_disallowed"]:
+            click.echo("No previous tracks are available to skip to.")
+        else:
+            sp_auth.previous_track(device_id=device)
+            # delay to prevent fetching current playback before it updates on server side.
+            sleep(0.1)
+            current_playback = sp_auth.current_playback()
+            get_current_playback(res=current_playback, display=True)
     except AttributeError:
         # AttributeError is thrown if authorization was unsuccessful, so show that error instead.
         pass
@@ -115,7 +149,7 @@ def previous_track(ctx, device):
 @click.pass_obj
 def next_track(ctx, device):
     """
-    Skips playback to the next track in the queue.
+    Skips playback to the next track in the queue
     """
     sp_auth = ctx
 
@@ -142,9 +176,13 @@ def pause_playback(ctx, device):
     sp_auth = ctx
 
     try:
-        sp_auth.pause_playback(device_id=device)
-
-        click.secho("Playback paused.")
+        current_playback = sp_auth.current_playback()
+        playback = get_current_playback(current_playback, display=False)
+        if playback["pausing_disallowed"]:
+            click.echo("No current playback to pause.")
+        else:
+            sp_auth.pause_playback(device_id=device)
+            click.secho("Playback paused.")
     except AttributeError:
         # AttributeError is thrown if authorization was unsuccessful, so show that error instead.
         pass
@@ -164,17 +202,26 @@ def start_playback(ctx, device, url):
 
     try:
         if url:
+            valid_url = check_url_format(url)
             if "track" in url:
-                check_url_format(url)
-                sp_auth.start_playback(device_id=device, uris=[url])
+                sp_auth.start_playback(device_id=device, uris=[valid_url])
             else:
-                sp_auth.start_playback(device_id=device, context_uri=url)
+                sp_auth.start_playback(device_id=device, context_uri=valid_url)
         else:
-            sp_auth.start_playback(device_id=device)
-            click.secho("Playback resumed.")
+            current_playback = sp_auth.current_playback()
+            playback = get_current_playback(current_playback, display=False)
+            if playback["resuming_disallowed"]:
+                click.secho("Playback is already active.")
+            else:
+                sp_auth.start_playback(device_id=device)
+                click.secho("Playback resumed.")
+
         sleep(0.5)
         current_playback = sp_auth.current_playback()
         get_current_playback(res=current_playback, display=True)
+    except TypeError:
+        # the get_current_playback function will have already displayed the error message
+        pass
     except ValueError:
         click.secho("Invalid URL was provided.", fg="red")
     except AttributeError:
@@ -192,9 +239,10 @@ def start_playback(ctx, device, url):
     help="collaborative or non-collaborative",
 )
 @click.option("-d", type=str, default="", help="playlist description")
+@click.option("--user", envvar="SPOTIFY_USER_ID")
 @click.argument("name", required=True)
 @click.pass_obj
-def create_playlist(ctx, pub, c, d, name):
+def create_playlist(ctx, pub, c, d, name, user):
     """
     Creates a new playlist.
     """
@@ -205,8 +253,16 @@ def create_playlist(ctx, pub, c, d, name):
         click.secho(style("Collaborative playlists can only be private.", fg="red"))
     else:
         try:
+            config_dir = Path(user_config_dir("spoticli", "joebonneau"))
+            config_file = config_dir / "spoticli.ini"
+
+            if config_file.exists():
+                config = ConfigParser()
+                config.read(config_file)
+                user = config["auth"]["SPOTIFY_USER_ID"]
+
             sp_auth.user_playlist_create(
-                user=SPOTIFY_USER_ID,
+                user=user,
                 name=name,
                 public=pub,
                 collaborative=c,
@@ -308,8 +364,9 @@ def decrease_volume(ctx, amount, device):
 
 @main.command("now")
 @click.option("-v", "--verbose", is_flag=True, help="displays additional info")
+@click.option("-u", "--url", default="t", help="displays current playback url")
 @click.pass_obj
-def now_playing(ctx, verbose):
+def now_playing(ctx, verbose, url):
     """
     Displays info about the current playback.
     """
@@ -322,9 +379,12 @@ def now_playing(ctx, verbose):
 
         if verbose:
             audio_features = sp_auth.audio_features(playback["track_uri"])
-            click.secho(style("Estimates:", underline=True))
             click.echo(f"BPM: {audio_features[0]['tempo']}")
             click.echo(f"Time signature: 4/{audio_features[0]['time_signature']}")
+        if url == "t":
+            click.echo(f"Track URL: {style(playback['track_url'], fg='magenta')}")
+        elif url == "a":
+            click.echo(f"Album URL: {style(playback['album_url'], fg='blue')}")
     except AttributeError:
         # AttributeError is thrown if authorization was unsuccessful, so show that error instead.
         pass
@@ -399,7 +459,7 @@ def get_random_saved_album(ctx, device):
 
         while True:
             album = saved_albums[rand_i]["album"]
-            artists = saved_albums[rand_i]["artists"]
+            artists = truncate(saved_albums[rand_i]["artists"])
             click.echo(
                 f"Selected album: {style(album, fg='blue')} by {style(artists, fg='green')}."
             )
@@ -467,7 +527,7 @@ def add_current_track_to_playlists(ctx):
         click.echo(tabulate(display_dict, headers="keys", tablefmt="github"))
 
         indices = click.prompt(
-            "Enter the indices of the playlists to add the track to separated by commas.",
+            "Enter the indices of the playlists to add the track to separated by commas",
             type=CommaSeparatedIndices([str(i) for i in positions]),
             show_choices=False,
         )
@@ -478,11 +538,10 @@ def add_current_track_to_playlists(ctx):
                 items=[playback["track_uri"]],
             )
 
-        click.secho(
-            "The track was successfully added to all specified playlists!", fg="green"
+        click.echo(
+            f"{style(playback['track_name'], fg='magenta')} {style('was successfully added to all specified playlists!', fg='green')}"
         )
-    # except TypeError:
-    #     click.secho("Nothing is currently playing!", fg="red")
+
     except AttributeError:
         # AttributeError is thrown if authorization was unsuccessful, so show that error instead.
         pass
@@ -491,11 +550,12 @@ def add_current_track_to_playlists(ctx):
 
 
 @main.command("recent")
-@click.option("--device", envvar="SPOTIFY_DEVICE_ID")
 @click.option("-a", "--after", default=None, help="YYYYMMDD MM:SS")
 @click.option("-l", "--limit", default=25, help="Entries to return (max 50)")
+@click.option("--device", envvar="SPOTIFY_DEVICE_ID")
+@click.option("--user", envvar="SPOTIFY_USER_ID")
 @click.pass_obj
-def recently_played(ctx, after, limit, device):
+def recently_played(ctx, after, limit, device, user):
     """
     Displays information about recently played tracks.
     """
@@ -524,7 +584,16 @@ def recently_played(ctx, after, limit, device):
                 show_choices=False,
             )
             playlist_name = click.prompt("Enter the playlist name")
-            sp_auth.user_playlist_create(user=SPOTIFY_USER_ID, name=playlist_name)
+
+            config_dir = Path(user_config_dir("spoticli", "joebonneau"))
+            config_file = config_dir / "spoticli.ini"
+
+            if config_file.exists():
+                config = ConfigParser()
+                config.read(config_file)
+                user = config["auth"]["SPOTIFY_USER_ID"]
+
+            sp_auth.user_playlist_create(user=user, name=playlist_name)
             playlist_res = sp_auth.current_user_playlists(limit=1)
             playlist_uri = playlist_res["items"][0]["uri"]
             sp_auth.playlist_add_items(
@@ -614,12 +683,99 @@ def add_to_queue(ctx, url, device):
     sp_auth = ctx
 
     try:
-        check_url_format(url)
+        valid_url = check_url_format(url)
         if "album" in url:
-            add_album_to_queue(sp_auth, url, device)
+            add_album_to_queue(sp_auth, valid_url, device)
         else:
-            sp_auth.add_to_queue(url, device)
+            sp_auth.add_to_queue(valid_url, device)
             click.secho("Track successfully added to queue.", fg="green")
+    except ValueError:
+        click.secho("An invalid URL was provided.", fg="red")
+    except AttributeError:
+        pass
+    except SpotifyException as e:
+        click.secho(str(e), fg="red")
+
+
+@main.command("spa")
+@click.argument("url", required=True)
+# @click.option("-c", "--content", default="all")
+@click.pass_obj
+def save_playlist_albums(
+    ctx,
+    url,
+):
+    """
+    Retrieves all albums from a given playlist and allows the user to add them to their library.
+    """
+
+    sp_auth = ctx
+
+    fields = "items(track(album(album_type,artists(name),name,total_tracks,uri,release_date)))"
+
+    try:
+        check_url_format(url)
+        click.secho("Retrieving all albums and EPs from the playlist...", fg="magenta")
+        playlist_items = sp_auth.playlist_items(playlist_id=url, fields=fields)
+        album_items = []
+        album_uris = []
+        index = 0
+        for item in playlist_items["items"]:
+            item_album = item["track"]["album"]
+            if item_album["total_tracks"] > 1 and item_album["album_type"] == "single":
+                is_album_saved = sp_auth.current_user_saved_albums_contains(
+                    albums=[item_album["uri"]]
+                )
+                if not is_album_saved[0]:
+                    album_items.append(
+                        {
+                            "index": index,
+                            "artists": truncate(get_artist_names(item_album), 40),
+                            "album": truncate(item_album["name"], 40),
+                            "album_type": "EP",
+                            "total_tracks": item_album["total_tracks"],
+                            "release_date": item_album["release_date"],
+                        }
+                    )
+                    album_uris.append(item_album["uri"])
+                    index += 1
+            elif item_album["album_type"] == "album":
+                is_album_saved = sp_auth.current_user_saved_albums_contains(
+                    albums=[item_album["uri"]]
+                )
+                if not is_album_saved[0]:
+                    album_items.append(
+                        {
+                            "index": index,
+                            "artists": truncate(get_artist_names(item_album), 40),
+                            "album": truncate(item_album["name"], 40),
+                            "album_type": item_album["album_type"],
+                            "total_tracks": item_album["total_tracks"],
+                            "release_date": item_album["release_date"],
+                        }
+                    )
+                    album_uris.append(item_album["uri"])
+                    index += 1
+        click.echo(tabulate(album_items, headers="keys", tablefmt="github"))
+        add_all_albums = click.prompt(
+            "Add all albums to user library?",
+            type=Choice(("y", "n")),
+            show_choices=True,
+        )
+
+        if add_all_albums == "y":
+            sp_auth.current_user_saved_albums_add(albums=album_uris)
+        else:
+            album_selection = click.prompt(
+                "Enter the indices of albums to add (separated by a comma)",
+                type=CommaSeparatedIndices([str(i) for i in range(len(album_uris))]),
+                show_choices=False,
+            )
+
+            album_sublist = [album_uris[i] for i in album_selection]
+            sp_auth.current_user_saved_albums_add(albums=album_sublist)
+
+        click.secho("Albums successfully added to user library!", fg="green")
     except ValueError:
         click.secho("An invalid URL was provided.", fg="red")
     except AttributeError:

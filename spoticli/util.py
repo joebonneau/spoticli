@@ -1,10 +1,14 @@
 import re
 import time
+from configparser import ConfigParser
 from datetime import datetime
+from os import mkdir
+from pathlib import Path
 from time import sleep
 from typing import Any, Generator, Optional
 
 import click
+from appdirs import user_config_dir
 from click.termui import style
 from click.types import Choice
 from spotipy.client import Spotify
@@ -12,7 +16,7 @@ from tabulate import tabulate
 from tqdm import tqdm
 
 
-def add_playlist_to_queue(sp_auth, uri: str, device: Optional[str]) -> None:
+def add_playlist_to_queue(sp_auth, uri: str, device: Optional[str] = None) -> None:
     """
     Adds all tracks from a playlist to the queue.
     """
@@ -63,11 +67,13 @@ def get_artist_names(res: dict[str, Any]) -> str:
     return artists_str
 
 
-def get_current_playback(res: dict[str, Any], display: bool) -> Optional[dict]:  # type: ignore
+def get_current_playback(res: dict[str, Any], display: bool) -> Optional[dict]:
     """
     Retrieves current playback information, parses the json response, and optionally displays
     information about the current playback.
     """
+
+    playback = None
 
     try:
         playback_items = res["item"]
@@ -77,13 +83,18 @@ def get_current_playback(res: dict[str, Any], display: bool) -> Optional[dict]: 
             "artists": get_artist_names(playback_album),
             "track_name": playback_items["name"],
             "track_uri": playback_items["uri"],
+            "track_url": playback_items["external_urls"].get("spotify"),
             "album_name": playback_album["name"],
             "album_type": playback_album["album_type"],
             "album_uri": playback_album["uri"],
+            "album_url": playback_album["external_urls"].get("spotify"),
             "release_date": playback_album["release_date"],
             "duration": convert_ms(playback_items["duration_ms"]),
             "volume": res["device"]["volume_percent"],
             "shuffle_state": res["shuffle_state"],
+            "resuming_disallowed": res["actions"]["disallows"].get("resuming"),
+            "pausing_disallowed": res["actions"]["disallows"].get("pausing"),
+            "skip_prev_disallowed": res["actions"]["disallows"].get("skipping_prev"),
         }
 
         if display:
@@ -98,10 +109,10 @@ def get_current_playback(res: dict[str, Any], display: bool) -> Optional[dict]: 
             click.echo(
                 f"Duration: {playback['duration']}, Released: {playback['release_date']}"
             )
-
-        return playback
     except TypeError:
         click.secho("Nothing is currently playing!", fg="red")
+
+    return playback
 
 
 def search_parse(res: dict[str, Any], k: str) -> tuple[list[dict[str, Any]], list[str]]:
@@ -125,7 +136,7 @@ def search_parse(res: dict[str, Any], k: str) -> tuple[list[dict[str, Any]], lis
     elif k == "artists":
         results = []
         for i, item in enumerate(items):
-            results.append({"index": i, "artist": item["name"]})
+            results.append({"index": i, "artist": truncate(item["name"])})
             uris.append(item["uri"])
     elif k == "playlists":
         results = []
@@ -135,7 +146,7 @@ def search_parse(res: dict[str, Any], k: str) -> tuple[list[dict[str, Any]], lis
             results.append(
                 {
                     "index": i,
-                    "name": item["name"],
+                    "name": truncate(item["name"]),
                     "creator": item["owner"]["display_name"],
                     "description": truncate(desc),
                     "tracks": item["tracks"]["total"],
@@ -167,7 +178,7 @@ def search_proceed(
     type_: str,
     results: list[dict[str, Any]],
     uris: list[str],
-    device: Optional[str],
+    device: Optional[str] = None,
 ) -> None:
 
     click.secho(tabulate(results, headers="keys", tablefmt="github"))
@@ -230,16 +241,21 @@ def search_proceed(
                 show_choices=False,
             )
         )
-        # index = int(index)
         play_or_queue = click.prompt(
             "Play now or add to queue?",
             type=Choice(("p", "q"), case_sensitive=False),
             show_choices=True,
         )
         if play_or_queue == "p":
-            sp_auth.start_playback(uris=[uris[index]], device_id=device)
+            play_content(
+                sp_auth=sp_auth,
+                uri=uris[index],
+                album_or_track=album_or_track,
+                device_id=device,
+            )
             sleep(0.5)
-            get_current_playback(sp_auth, display=True)
+            playback = sp_auth.current_playback()
+            get_current_playback(playback, display=True)
         else:
             if album_or_track == "a":
                 add_album_to_queue(sp_auth, uris[index], device=device)
@@ -247,6 +263,19 @@ def search_proceed(
                 sp_auth.add_to_queue(uris[index], device_id=device)
 
             click.secho("Successfully added to queue!", fg="green")
+
+
+def play_content(
+    sp_auth: Spotify,
+    uri: str,
+    album_or_track: str,
+    device_id: str = None,
+):
+
+    if album_or_track == "t":
+        sp_auth.start_playback(uris=[uri], device_id=device_id)
+    elif album_or_track == "a":
+        sp_auth.start_playback(context_uri=uri, device_id=device_id)
 
 
 def convert_ms(duration_ms: int) -> str:
@@ -285,7 +314,7 @@ def convert_timestamp(timestamp: str) -> int:
 
 def convert_datetime(datetime_str: str) -> int:
     """
-    Converts a string representation of a datetime (YYYYMMDD HH:MM) to milliseconds.
+    Converts a string representation of a datetime (YYYYMMDD HH:MM) to milliseconds
     """
 
     datetime_pattern = "%Y%m%d %H:%M"
@@ -305,7 +334,7 @@ def truncate(name: str, length: int = 50) -> str:
     return name
 
 
-def check_url_format(url: str) -> Optional[bool]:
+def check_url_format(url: str) -> str:
     """
     Performs a simple URL validation check. Definitely won't catch all errors, but will eliminate most.
     """
@@ -316,7 +345,7 @@ def check_url_format(url: str) -> Optional[bool]:
     if not match:
         raise ValueError
 
-    return True
+    return "https://" + match.group()
 
 
 def parse_recent_playback(
@@ -417,3 +446,34 @@ def parse_artist_albums(
     choices = (str(num) for num in range(len(albums)))
 
     return uris, choices
+
+
+def generate_config():
+
+    config_dir = Path(user_config_dir()) / "spoticli"
+    config_file = config_dir / "spoticli.ini"
+    config = ConfigParser()
+
+    if not config_dir.exists():
+        mkdir(config_dir)
+
+    client_id = click.prompt(
+        "Provide the Spotify client ID from the developer dashboard"
+    )
+    client_secret = click.prompt(
+        "Provide the Spotify client secret from the developer dashboard"
+    )
+    redirect_uri = click.prompt("Provide the redirect uri specified in the Spotify app")
+    user_id = click.prompt("Provide the Spotify user ID")
+
+    config["auth"] = {
+        "SPOTIFY_CLIENT_ID": client_id,
+        "SPOTIFY_CLIENT_SECRET": client_secret,
+        "SPOTIFY_USER_ID": user_id,
+        "SPOTIFY_REDIRECT_URI": redirect_uri,
+    }
+
+    with open(config_file, "w") as cfg:
+        config.write(cfg)
+
+    click.secho("Config file created successfully!", fg="green")
