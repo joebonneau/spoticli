@@ -37,6 +37,14 @@ def test_seek():
     assert result.output == ""
 
 
+def test_pause():
+    runner = CliRunner()
+
+    result = runner.invoke(main, ["pause", f"--device={SPOTIFY_DEVICE_ID}"])
+
+    assert "Playback paused." in result.output
+
+
 def test_voldown():
     runner = CliRunner()
 
@@ -130,14 +138,6 @@ def test_recent_action_create_playlist():
     )
 
     assert "Playlist 'recent_test' created successfully!" in result.output
-
-
-def test_pause():
-    runner = CliRunner()
-
-    result = runner.invoke(main, ["pause", f"--device={SPOTIFY_DEVICE_ID}"])
-
-    assert "Playback paused." in result.output
 
 
 def test_shuffle_on():
