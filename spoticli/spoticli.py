@@ -239,9 +239,10 @@ def start_playback(ctx, device, url):
     help="collaborative or non-collaborative",
 )
 @click.option("-d", type=str, default="", help="playlist description")
+@click.option("--user", envvar=SPOTIFY_USER_ID)
 @click.argument("name", required=True)
 @click.pass_obj
-def create_playlist(ctx, pub, c, d, name):
+def create_playlist(ctx, pub, c, d, name, user_id):
     """
     Creates a new playlist.
     """
@@ -258,10 +259,10 @@ def create_playlist(ctx, pub, c, d, name):
             if config_file.exists():
                 config = ConfigParser()
                 config.read(config_file)
-                SPOTIFY_USER_ID = config["auth"]["SPOTIFY_USER_ID"]
+                user_id = config["auth"]["SPOTIFY_USER_ID"]
 
             sp_auth.user_playlist_create(
-                user=SPOTIFY_USER_ID,
+                user=user_id,
                 name=name,
                 public=pub,
                 collaborative=c,
@@ -549,11 +550,12 @@ def add_current_track_to_playlists(ctx):
 
 
 @main.command("recent")
-@click.option("--device", envvar="SPOTIFY_DEVICE_ID")
 @click.option("-a", "--after", default=None, help="YYYYMMDD MM:SS")
 @click.option("-l", "--limit", default=25, help="Entries to return (max 50)")
+@click.option("--device", envvar="SPOTIFY_DEVICE_ID")
+@click.option("--user", envvar=SPOTIFY_USER_ID)
 @click.pass_obj
-def recently_played(ctx, after, limit, device):
+def recently_played(ctx, after, limit, device, user_id):
     """
     Displays information about recently played tracks.
     """
@@ -589,9 +591,9 @@ def recently_played(ctx, after, limit, device):
             if config_file.exists():
                 config = ConfigParser()
                 config.read(config_file)
-                SPOTIFY_USER_ID = config["auth"]["SPOTIFY_USER_ID"]
+                user_id = config["auth"]["SPOTIFY_USER_ID"]
 
-            sp_auth.user_playlist_create(user=SPOTIFY_USER_ID, name=playlist_name)
+            sp_auth.user_playlist_create(user=user_id, name=playlist_name)
             playlist_res = sp_auth.current_user_playlists(limit=1)
             playlist_uri = playlist_res["items"][0]["uri"]
             sp_auth.playlist_add_items(
