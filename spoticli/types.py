@@ -1,6 +1,6 @@
 import re
 
-from click.types import Choice
+from click.types import Choice, ParamType
 
 
 class CommaSeparatedIndices(Choice):
@@ -50,3 +50,22 @@ class CommaSeparatedIndexRange(Choice):
             else:
                 selection.append(int(choice))
         return selection
+
+
+class SpotifyCredential(ParamType):
+    """
+    Validates that the input is both 32 characters long and contains only alphanumeric
+    characters.
+    """
+
+    def convert(self, value, param, ctx):
+        # Use regex to confirm only numbers and commas were provided
+        if len(value) != 32:
+            self.fail("Input must be 32 characters long")
+        pattern = r"\w{32}"
+        search = re.search(pattern, value)
+        # Fail the input if invalid characters were found
+        if search is None:
+            self.fail("Input contains invalid characters")
+
+        return search.group()

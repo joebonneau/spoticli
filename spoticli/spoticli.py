@@ -17,11 +17,12 @@ from spotipy.oauth2 import SpotifyOAuth, SpotifyOauthError
 from tabulate import tabulate
 
 from spoticli.types import CommaSeparatedIndexRange, CommaSeparatedIndices
-from spoticli.util import (  # generate_config,
+from spoticli.util import (
     add_album_to_queue,
     check_url_format,
     convert_datetime,
     convert_timestamp,
+    generate_config,
     get_artist_names,
     get_current_playback,
     parse_recent_playback,
@@ -52,6 +53,20 @@ STATE_STR = " ".join(states)
 
 
 @click.group()
+def config():
+    pass
+
+
+@config.command("cfg")
+def cfg():
+    """
+    Generates a configuration file for Spotify credentials.
+    """
+
+    generate_config()
+
+
+@click.group()
 @click.pass_context
 def main(
     ctx,
@@ -60,9 +75,10 @@ def main(
     client_secret: Optional[str] = SPOTIFY_CLIENT_SECRET,
     redirect_uri: Optional[str] = SPOTIFY_REDIRECT_URI,
 ):
-    # config_dir = Path(user_config_dir("spoticli", "joebonneau"))
-    # config_file = config_dir / "spoticli.ini"
+
     sp_auth = None
+    config_dir = Path(user_config_dir("spoticli", "joebonneau"))
+    config_file = config_dir / "spoticli.ini"
 
     try:
         if CACHED_TOKEN_INFO:
@@ -76,22 +92,22 @@ def main(
                     cache_handler=MemoryCacheHandler(token_info=token_info),
                 )
             )
-        # elif config_file.exists():
-        #     config = ConfigParser()
-        #     config.read(config_file)
+        elif config_file.exists():
+            config = ConfigParser()
+            config.read(config_file)
 
-        #     client_id = config["auth"]["SPOTIFY_CLIENT_ID"]
-        #     client_secret = config["auth"]["SPOTIFY_CLIENT_SECRET"]
-        #     redirect_uri = config["auth"]["SPOTIFY_REDIRECT_URI"]
+            client_id = config["auth"]["SPOTIFY_CLIENT_ID"]
+            client_secret = config["auth"]["SPOTIFY_CLIENT_SECRET"]
+            redirect_uri = config["auth"]["SPOTIFY_REDIRECT_URI"]
 
-        #     sp_auth = sp.Spotify(
-        #         auth_manager=SpotifyOAuth(
-        #             scope=scope,
-        #             client_id=client_id,
-        #             client_secret=client_secret,
-        #             redirect_uri=redirect_uri,
-        #         )
-        #     )
+            sp_auth = sp.Spotify(
+                auth_manager=SpotifyOAuth(
+                    scope=scope,
+                    client_id=client_id,
+                    client_secret=client_secret,
+                    redirect_uri=redirect_uri,
+                )
+            )
         else:
             sp_auth = sp.Spotify(
                 auth_manager=SpotifyOAuth(
@@ -656,7 +672,7 @@ def recently_played(ctx, after, limit, device, user):
 @click.pass_obj
 def search(ctx, term, type_, device):
     """
-    Queries Spotify's databases.
+    Search for specific content.
     """
     sp_auth = ctx
 
@@ -706,7 +722,7 @@ def save_playlist_albums(
     url,
 ):
     """
-    Retrieves all albums from a given playlist and allows the user to add them to their library.
+    Retrieve albums from a given playlist and add to library.
     """
 
     sp_auth = ctx
@@ -782,3 +798,6 @@ def save_playlist_albums(
         pass
     except SpotifyException as e:
         click.secho(str(e), fg="red")
+
+
+cli = click.CommandCollection(sources=[main, config])

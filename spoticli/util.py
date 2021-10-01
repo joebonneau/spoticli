@@ -15,6 +15,8 @@ from spotipy.client import Spotify
 from tabulate import tabulate
 from tqdm import tqdm
 
+from spoticli.types import SpotifyCredential
+
 
 def add_playlist_to_queue(sp_auth, uri: str, device: Optional[str] = None) -> None:
     """
@@ -457,23 +459,37 @@ def generate_config():
     if not config_dir.exists():
         mkdir(config_dir)
 
-    client_id = click.prompt(
-        "Provide the Spotify client ID from the developer dashboard"
-    )
-    client_secret = click.prompt(
-        "Provide the Spotify client secret from the developer dashboard"
-    )
-    redirect_uri = click.prompt("Provide the redirect uri specified in the Spotify app")
-    user_id = click.prompt("Provide the Spotify user ID")
+    proceed = "y"
 
-    config["auth"] = {
-        "SPOTIFY_CLIENT_ID": client_id,
-        "SPOTIFY_CLIENT_SECRET": client_secret,
-        "SPOTIFY_USER_ID": user_id,
-        "SPOTIFY_REDIRECT_URI": redirect_uri,
-    }
+    if config_file.exists():
+        proceed = click.prompt(
+            "A config file already exists. Do you want to overwrite its contents?",
+            type=Choice(("y", "n"), case_sensitive=False),
+            show_choices=True,
+        )
 
-    with open(config_file, "w") as cfg:
-        config.write(cfg)
+    if proceed == "y":
+        client_id = click.prompt(
+            "Provide the Spotify client ID from the developer dashboard",
+            type=SpotifyCredential(),
+        )
+        client_secret = click.prompt(
+            "Provide the Spotify client secret from the developer dashboard",
+            type=SpotifyCredential(),
+        )
+        redirect_uri = click.prompt(
+            "Provide the redirect URI you specified in the Spotify app"
+        )
+        user_id = click.prompt("Provide the Spotify user ID")
 
-    click.secho("Config file created successfully!", fg="green")
+        config["auth"] = {
+            "SPOTIFY_CLIENT_ID": client_id,
+            "SPOTIFY_CLIENT_SECRET": client_secret,
+            "SPOTIFY_USER_ID": user_id,
+            "SPOTIFY_REDIRECT_URI": redirect_uri,
+        }
+
+        with open(config_file, "w") as cfg:
+            config.write(cfg)
+
+        click.secho("Config file created successfully!", fg="green")

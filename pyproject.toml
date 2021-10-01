@@ -24,7 +24,7 @@ pre-commit = "^2.14.0"
 pytest-cov = "^2.12.1"
 
 [tool.poetry.scripts]
-spoticli = "spoticli:spoticli.main"
+spoticli = "spoticli:spoticli.cli"
 
 [tool.isort]
 profile = "black"
