@@ -239,7 +239,7 @@ def start_playback(ctx, device, url):
     help="collaborative or non-collaborative",
 )
 @click.option("-d", type=str, default="", help="playlist description")
-@click.option("--user", envvar=SPOTIFY_USER_ID)
+@click.option("--user", envvar="SPOTIFY_USER_ID")
 @click.argument("name", required=True)
 @click.pass_obj
 def create_playlist(ctx, pub, c, d, name, user):
@@ -553,7 +553,7 @@ def add_current_track_to_playlists(ctx):
 @click.option("-a", "--after", default=None, help="YYYYMMDD MM:SS")
 @click.option("-l", "--limit", default=25, help="Entries to return (max 50)")
 @click.option("--device", envvar="SPOTIFY_DEVICE_ID")
-@click.option("--user", envvar=SPOTIFY_USER_ID)
+@click.option("--user", envvar="SPOTIFY_USER_ID")
 @click.pass_obj
 def recently_played(ctx, after, limit, device, user):
     """
