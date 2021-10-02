@@ -159,12 +159,12 @@ def previous_track(ctx: dict[str, Any], device: Optional[str]):
         if playback:
             if playback["skip_prev_disallowed"]:
                 click.echo("No previous tracks are available to skip to.")
-        else:
-            sp_auth.previous_track(device_id=device)
-            # delay to prevent fetching current playback before it updates on server side.
-            sleep(0.2)
-            current_playback = sp_auth.current_playback()
-            get_current_playback(res=current_playback, display=True)
+            else:
+                sp_auth.previous_track(device_id=device)
+                # delay to prevent fetching current playback before it updates on server side.
+                sleep(0.2)
+                current_playback = sp_auth.current_playback()
+                get_current_playback(res=current_playback, display=True)
     except AttributeError:
         # AttributeError is thrown if authorization was unsuccessful, so show that error instead.
         pass
