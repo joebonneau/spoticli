@@ -84,9 +84,9 @@ def main(
                 config = ConfigParser()
                 config.read(config_file)
 
-                client_id = config["auth"]["SPOTIFY_CLIENT_ID"]
-                client_secret = config["auth"]["SPOTIFY_CLIENT_SECRET"]
-                redirect_uri = config["auth"]["SPOTIFY_REDIRECT_URI"]
+                client_id = config["auth"]["spotify_client_id"]
+                client_secret = config["auth"]["spotify_client_secret"]
+                redirect_uri = config["auth"]["spotify_redirect_uri"]
 
                 sp_auth = sp.Spotify(
                     auth_manager=SpotifyOAuth(
@@ -217,9 +217,9 @@ def pause_playback(ctx: dict[str, Any], device: Optional[str]):
         if playback:
             if playback["pausing_disallowed"]:
                 click.echo("No current playback to pause.")
-        else:
-            sp_auth.pause_playback(device_id=device)
-            click.secho("Playback paused.")
+            else:
+                sp_auth.pause_playback(device_id=device)
+                click.secho("Playback paused.")
     except AttributeError:
         # AttributeError is thrown if authorization was unsuccessful, so show that error instead.
         pass
@@ -411,12 +411,12 @@ def decrease_volume(ctx: dict[str, Any], amount: int, device: str):
         if playback_info:
             previous_volume = playback_info["volume"]
 
-        new_volume = int(round(previous_volume - amount, 0))
-        if new_volume < 0:
-            new_volume = 0
+            new_volume = int(round(previous_volume - amount, 0))
+            if new_volume < 0:
+                new_volume = 0
 
-        sp_auth.volume(new_volume, device_id=device)
-        click.secho(f"New volume: {new_volume}")
+            sp_auth.volume(new_volume, device_id=device)
+            click.secho(f"New volume: {new_volume}")
     except AttributeError:
         # AttributeError is thrown if authorization was unsuccessful, so show that error instead.
         pass
@@ -783,7 +783,6 @@ def add_to_queue(ctx: dict[str, Any], url: str, device: str):
 
 @main.command("spa")
 @click.argument("url", required=True)
-# @click.option("-c", "--content", default="all")
 @click.pass_obj
 def save_playlist_albums(
     ctx: dict[str, Any],
