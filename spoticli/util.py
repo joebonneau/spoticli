@@ -495,26 +495,23 @@ def generate_config():
         click.secho("Config file created successfully!", fg="green")
 
 
-def check_devices(res):
+def check_devices(res: dict[str, list[dict[str, Any]]]) -> Optional[str]:
 
     device_id = None
-    device_options = []
+    active_device = False
+    device_options: list[dict[str, Any]] = []
     for i, device in enumerate(res["devices"]):
         device_options.append(
             {
                 "index": i,
                 "name": device["name"],
                 "type": device["type"],
-                "is_active": device["is_active"],
                 "id": device["id"],
             }
         )
 
-    active_device = False
-    for device in device_options:
         if device["is_active"]:
             active_device = True
-            break
 
     if not active_device:
         click.echo(tabulate(device_options, headers="keys", tablefmt="github"))
@@ -522,50 +519,9 @@ def check_devices(res):
         device_to_activate = click.prompt(
             "Enter the index of the device to activate",
             type=Choice([str(i) for i in range(len(device_options))]),
+            show_choices=False,
         )
 
         device_id = device_options[int(device_to_activate)]["id"]
 
     return device_id
-
-
-# def make_exclude_hook_group(callback):
-#     """for any command that is not decorated, call the callback"""
-
-#     hook_attr_name = "hook_" + callback.__name__
-
-#     class HookGroup(click.Group):
-#         """group to hook context invoke to see if the callback is needed"""
-
-#         def invoke(self, ctx):
-#             """group invoke which hooks context invoke"""
-#             invoke = ctx.invoke
-
-#             def ctx_invoke(*args, **kwargs):
-#                 """monkey patched context invoke"""
-#                 sub_cmd = ctx.command.commands[ctx.invoked_subcommand]
-#                 if not isinstance(sub_cmd, click.Group) and getattr(
-#                     sub_cmd, hook_attr_name, True
-#                 ):
-#                     # invoke the callback
-#                     callback()
-#                 return invoke(*args, **kwargs)
-
-#             ctx.invoke = ctx_invoke
-
-#             return super(HookGroup, self).invoke(ctx)
-
-#         def group(self, *args, **kwargs):
-#             """new group decorator to make sure sub groups are also hooked"""
-#             if "cls" not in kwargs:
-#                 kwargs["cls"] = type(self)
-#             return super(HookGroup, self).group(*args, **kwargs)
-
-#     def decorator(func=None):
-#         if func is None:
-#             # if called other than as decorator, return group class
-#             return HookGroup
-
-#         setattr(func, hook_attr_name, False)
-
-#     return decorator

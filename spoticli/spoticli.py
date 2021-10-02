@@ -107,13 +107,15 @@ def main(
                 )
 
             devices_res = sp_auth.devices()
-
             device_id = check_devices(devices_res)
-
             if device_id:
                 sp_auth.transfer_playback(device_id=device_id, force_play=True)
+                sleep(0.2)
 
-            ctx.obj = {"sp_auth": sp_auth, "device_id": device_id}
+            ctx.obj = {
+                "sp_auth": sp_auth,
+                "device_id": device_id,
+            }
 
     except KeyError:
         click.secho(
@@ -157,7 +159,7 @@ def previous_track(ctx, device):
         else:
             sp_auth.previous_track(device_id=device)
             # delay to prevent fetching current playback before it updates on server side.
-            sleep(0.1)
+            sleep(0.2)
             current_playback = sp_auth.current_playback()
             get_current_playback(res=current_playback, display=True)
     except AttributeError:
@@ -182,7 +184,7 @@ def next_track(ctx, device):
     try:
         sp_auth.next_track(device_id=device)
         # delay to prevent fetching current playback before it updates on server side.
-        sleep(0.1)
+        sleep(0.2)
         current_playback = sp_auth.current_playback()
         get_current_playback(res=current_playback, display=True)
     except AttributeError:
@@ -249,7 +251,7 @@ def start_playback(ctx, device, url):
                 sp_auth.start_playback(device_id=device)
                 click.secho("Playback resumed.")
 
-        sleep(0.5)
+        sleep(0.2)
         current_playback = sp_auth.current_playback()
         get_current_playback(res=current_playback, display=True)
     except TypeError:
@@ -533,7 +535,7 @@ def get_random_saved_album(ctx, device):
             sp_auth.start_playback(
                 context_uri=saved_albums[rand_i]["album_uri"], device_id=device
             )
-            sleep(0.5)
+            sleep(0.2)
             current_playback = sp_auth.current_playback()
             get_current_playback(res=current_playback, display=True)
     except AttributeError:
@@ -683,7 +685,7 @@ def recently_played(ctx, after, limit, device, user):
                     context_uri=recent_dict["album_uri"][index],
                     device_id=device,
                 )
-            sleep(0.5)
+            sleep(0.2)
             current_playback = sp_auth.current_playback()
             get_current_playback(res=current_playback, display=True)
     except ValueError:
