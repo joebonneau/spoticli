@@ -494,6 +494,9 @@ def generate_config():
 
         click.secho("Config file created successfully!", fg="green")
 
+    else:
+        click.secho("Configuration creation canceled.")
+
 
 def check_devices(res: dict[str, list[dict[str, Any]]]) -> Optional[str]:
 
