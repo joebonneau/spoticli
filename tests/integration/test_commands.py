@@ -200,6 +200,9 @@ def test_cfg_success():
         "dp9s41ge8dlrl1mi77hwptmco",
     ]
 
+    # if the config file already exists, there is an additional prompt that asks the
+    # user whether they want to overwrite the contents
+    # this is accounted for in the assertions
     if config_file.exists():
         inputs.insert(0, "y")
 
