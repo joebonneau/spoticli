@@ -1,6 +1,6 @@
 import re
 
-from click.types import Choice, ParamType
+from click.types import Choice
 
 
 class CommaSeparatedIndices(Choice):
@@ -50,20 +50,3 @@ class CommaSeparatedIndexRange(Choice):
             else:
                 selection.append(int(choice))
         return selection
-
-
-class SpotifyCredential(ParamType):
-    """
-    Validates that the input is both 32 characters long and contains only alphanumeric
-    characters.
-    """
-
-    def convert(self, value, param, ctx):
-        # Use regex to confirm only numbers and letters a-f were provided
-        pattern = r"[0-9a-f]{32}"
-        search = re.search(pattern, value)
-        # Fail the input if invalid characters were found or length not matching
-        if not search:
-            self.fail(f"{value} is not a 32-character hexadecimal string", param, ctx)
-
-        return value
