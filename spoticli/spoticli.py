@@ -122,13 +122,15 @@ def main(
             "Config file exists but is set up improperly. Try recreating the config file.",
             fg="red",
         )
+        raise
     except (SpotifyException, SpotifyOauthError) as e:
         # Spotipy uses SPOTIPY in its environment variables which might be confusing for user.
         message = str(e).replace("SPOTIPY", "SPOTIFY")
         click.secho(
-            f"API authorization failed!\nError: {message}",
+            f"API authorization failed! {message}",
             fg="red",
         )
+        raise
 
 
 @main.command("cfg")
