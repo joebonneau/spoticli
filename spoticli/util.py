@@ -15,6 +15,8 @@ from spotipy.client import Spotify
 from tabulate import tabulate
 from tqdm import tqdm
 
+from spoticli.types import SpotifyCredential
+
 
 def add_playlist_to_queue(sp_auth, uri: str, device: Optional[str] = None) -> None:
     """
@@ -457,23 +459,72 @@ def generate_config():
     if not config_dir.exists():
         mkdir(config_dir)
 
-    client_id = click.prompt(
-        "Provide the Spotify client ID from the developer dashboard"
-    )
-    client_secret = click.prompt(
-        "Provide the Spotify client secret from the developer dashboard"
-    )
-    redirect_uri = click.prompt("Provide the redirect uri specified in the Spotify app")
-    user_id = click.prompt("Provide the Spotify user ID")
+    proceed = "y"
 
-    config["auth"] = {
-        "SPOTIFY_CLIENT_ID": client_id,
-        "SPOTIFY_CLIENT_SECRET": client_secret,
-        "SPOTIFY_USER_ID": user_id,
-        "SPOTIFY_REDIRECT_URI": redirect_uri,
-    }
+    if config_file.exists():
+        proceed = click.prompt(
+            "A config file already exists. Do you want to overwrite its contents?",
+            type=Choice(("y", "n"), case_sensitive=False),
+            show_choices=True,
+        )
 
-    with open(config_file, "w") as cfg:
-        config.write(cfg)
+    if proceed == "y":
+        client_id = click.prompt(
+            "Provide the Spotify client ID from the developer dashboard",
+            type=SpotifyCredential(),
+        )
+        client_secret = click.prompt(
+            "Provide the Spotify client secret from the developer dashboard",
+            type=SpotifyCredential(),
+        )
+        redirect_uri = click.prompt(
+            "Provide the redirect URI you specified in the Spotify app"
+        )
+        user_id = click.prompt("Provide the Spotify user ID")
 
-    click.secho("Config file created successfully!", fg="green")
+        config["auth"] = {
+            "SPOTIFY_CLIENT_ID": client_id,
+            "SPOTIFY_CLIENT_SECRET": client_secret,
+            "SPOTIFY_USER_ID": user_id,
+            "SPOTIFY_REDIRECT_URI": redirect_uri,
+        }
+
+        with open(config_file, "w") as cfg:
+            config.write(cfg)
+
+        click.secho("Config file created successfully!", fg="green")
+
+    else:
+        click.secho("Configuration creation canceled.")
+
+
+def check_devices(res: dict[str, list[dict[str, Any]]]) -> Optional[str]:
+
+    device_id = None
+    active_device = False
+    device_options: list[dict[str, Any]] = []
+    for i, device in enumerate(res["devices"]):
+        device_options.append(
+            {
+                "index": i,
+                "name": device["name"],
+                "type": device["type"],
+                "id": device["id"],
+            }
+        )
+
+        if device["is_active"]:
+            active_device = True
+
+    if not active_device:
+        click.echo(tabulate(device_options, headers="keys", tablefmt="github"))
+
+        device_to_activate = click.prompt(
+            "Enter the index of the device to activate",
+            type=Choice([str(i) for i in range(len(device_options))]),
+            show_choices=False,
+        )
+
+        device_id = device_options[int(device_to_activate)]["id"]
+
+    return device_id

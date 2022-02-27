@@ -1,5 +1,8 @@
 import os
+from configparser import ConfigParser
+from pathlib import Path
 
+from appdirs import user_config_dir
 from click.testing import CliRunner
 
 from spoticli.spoticli import main
@@ -174,3 +177,45 @@ def test_create_playlist_invalid_inputs():
     result = runner.invoke(main, ["cp", "-pub", "-c", playlist_name])
 
     assert "Collaborative playlists can only be private." in result.output
+
+
+def test_cfg_cancel():
+    runner = CliRunner()
+
+    result = runner.invoke(main, ["cfg"], input="n")
+
+    assert "Configuration creation canceled." in result.output
+
+
+def test_cfg_success():
+    runner = CliRunner()
+
+    config_dir = Path(user_config_dir()) / "spoticli"
+    config_file = config_dir / "spoticli.ini"
+
+    inputs = [
+        "420aec9e1e8e191480695d095e3ad2ed",
+        "220bec4e6e8e291300695d095e3ad2ed",
+        "http://localhost:8887/callback",
+        "dp9s41ge8dlrl1mi77hwptmco",
+    ]
+
+    # if the config file already exists, there is an additional prompt that asks the
+    # user whether they want to overwrite the contents
+    # this is accounted for in the assertions
+    if config_file.exists():
+        inputs.insert(0, "y")
+
+    result = runner.invoke(main, ["cfg"], input="\n".join(inputs))
+
+    config = ConfigParser()
+    config.read(config_file)
+
+    # this is important to check for the case where the config file existed and is
+    # being overwritten
+    assert config.sections() == ["auth"]
+    assert config["auth"]["spotify_client_id"] == "420aec9e1e8e191480695d095e3ad2ed"
+    assert config["auth"]["spotify_client_secret"] == "220bec4e6e8e291300695d095e3ad2ed"
+    assert config["auth"]["spotify_user_id"] == "dp9s41ge8dlrl1mi77hwptmco"
+    assert config["auth"]["spotify_redirect_uri"] == "http://localhost:8887/callback"
+    assert "Config file created successfully!" in result.output
