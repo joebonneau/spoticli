@@ -5,7 +5,7 @@ from datetime import datetime
 from os import mkdir
 from pathlib import Path
 from time import sleep
-from typing import Any, Generator, Optional
+from typing import Any, Generator, Iterable, Optional
 
 import click
 from appdirs import user_config_dir
@@ -61,21 +61,17 @@ def get_artist_names(res: dict[str, Any]) -> str:
     Retrieves all artist names for a given input to the "album" key of a response.
     """
 
-    artists = []
-    for artist in res["artists"]:
-        artists.append(artist["name"])
-    artists_str = ", ".join(artists)
-
-    return artists_str
+    artists = [artist["name"] for artist in res["artists"]]
+    return ", ".join(artists)
 
 
-def get_current_playback(res: dict[str, Any], display: bool) -> Optional[dict]:
+def get_current_playback(res: dict[str, Any], display: bool) -> dict:
     """
     Retrieves current playback information, parses the json response, and optionally displays
     information about the current playback.
     """
 
-    playback = None
+    playback = {}
 
     try:
         playback_items = res["item"]
@@ -100,21 +96,25 @@ def get_current_playback(res: dict[str, Any], display: bool) -> Optional[dict]:
         }
 
         if display:
-            track_name = style(playback["track_name"], fg="magenta")
-            artists_name = style(playback["artists"], fg="green")
-            album_name = style(playback["album_name"], fg="blue")
-            album_type = playback["album_type"]
-
-            click.secho(
-                f"Now playing: {track_name} by {artists_name} from the {album_type} {album_name}"
-            )
-            click.echo(
-                f"Duration: {playback['duration']}, Released: {playback['release_date']}"
-            )
+            _display_current_feedback(playback)
     except TypeError:
         click.secho("Nothing is currently playing!", fg="red")
 
     return playback
+
+
+def _display_current_feedback(playback):
+    track_name = style(playback["track_name"], fg="magenta")
+    artists_name = style(playback["artists"], fg="green")
+    album_name = style(playback["album_name"], fg="blue")
+    album_type = playback["album_type"]
+
+    click.secho(
+        f"Now playing: {track_name} by {artists_name} from the {album_type} {album_name}"
+    )
+    click.echo(
+        f"Duration: {playback['duration']}, Released: {playback['release_date']}"
+    )
 
 
 def search_parse(res: dict[str, Any], k: str) -> tuple[list[dict[str, Any]], list[str]]:
@@ -183,88 +183,58 @@ def search_proceed(
     device: Optional[str] = None,
 ) -> None:
 
-    click.secho(tabulate(results, headers="keys", tablefmt="github"))
-
-    choices = (str(num) for num in range(len(results)))
-    index = int(
-        click.prompt(
-            "Enter the index",
-            type=Choice(choices),  # type: ignore
-            show_choices=False,
-        )
-    )
+    display_table(results)
 
     if type_ != "artist":
-        action = click.prompt(
-            "Play now or add to queue?",
-            type=Choice(("p", "q"), case_sensitive=False),
-            show_choices=True,
-        )
+        choices = (str(num) for num in range(len(results)))
+        index = get_index(choices)
+
+        action = play_or_queue()
         if action == "p":
             sp_auth.start_playback(uris=[uris[index]], device_id=device)
-            sleep(0.5)
-            current_playback = sp_auth.current_playback()
-            get_current_playback(current_playback, display=True)
-        else:
-            if type_ == "album":
-                add_album_to_queue(sp_auth, uris[index], device=device)
-            elif type_ == "playlist":
-                confirmation = click.prompt(
-                    f"Are you sure you want to add all {results[index]['tracks']} tracks?",
-                    type=Choice(("y", "n"), case_sensitive=False),
-                    show_choices=True,
-                )
-                if confirmation == "y":
-                    add_playlist_to_queue(sp_auth, uris[index], device=device)
-                else:
-                    click.secho("Operation aborted.", fg="red")
-            elif type_ == "track":
-                sp_auth.add_to_queue(uris[index], device_id=device)
-                click.secho("Track added to queue successfully!", fg="green")
-    elif type_ == "artist":
-        album_or_track = click.prompt(
-            "View artist albums or most popular tracks?",
-            type=Choice(("a", "t"), case_sensitive=False),
-            show_choices=True,
-        )
-        if album_or_track == "a":
-            artist_albums_res = sp_auth.artist_albums(
-                uris[index], album_type="album,single"
+            _extracted_from_search_proceed_18(sp_auth)
+        elif type_ == "album":
+            add_album_to_queue(sp_auth, uris[index], device=device)
+        elif type_ == "playlist":
+            confirmation = click.prompt(
+                f"Are you sure you want to add all {results[index]['tracks']} tracks?",
+                type=Choice(("y", "n"), case_sensitive=False),
+                show_choices=True,
             )
-            uris, choices = parse_artist_albums(artist_albums_res)
-        else:
-            artist_tracks_res = sp_auth.artist_top_tracks(uris[index])
-            uris, choices = parse_artist_top_tracks(artist_tracks_res)
-
-        index = int(
-            click.prompt(
-                "Enter the index",
-                type=Choice(choices),  # type: ignore
-                show_choices=False,
-            )
-        )
-        play_or_queue = click.prompt(
-            "Play now or add to queue?",
-            type=Choice(("p", "q"), case_sensitive=False),
-            show_choices=True,
-        )
-        if play_or_queue == "p":
-            play_content(
-                sp_auth=sp_auth,
-                uri=uris[index],
-                album_or_track=album_or_track,
-                device_id=device,
-            )
-            sleep(0.5)
-            playback = sp_auth.current_playback()
-            get_current_playback(playback, display=True)
-        else:
-            if album_or_track == "a":
-                add_album_to_queue(sp_auth, uris[index], device=device)
+            if confirmation == "y":
+                add_playlist_to_queue(sp_auth, uris[index], device=device)
             else:
-                sp_auth.add_to_queue(uris[index], device_id=device)
+                click.secho("Operation aborted.", fg="red")
+        elif type_ == "track":
+            sp_auth.add_to_queue(uris[index], device_id=device)
+            click.secho("Track added to queue successfully!", fg="green")
 
-            click.secho("Successfully added to queue!", fg="green")
+
+# TODO Rename this here and in `search_proceed`
+def _extracted_from_search_proceed_18(sp_auth):
+    sleep(0.5)
+    current_playback = sp_auth.current_playback()
+    get_current_playback(current_playback, display=True)
+
+
+def get_index(choices):
+    idx_str = click.prompt(
+        "Enter the index",
+        type=Choice(choices),  # type: ignore
+        show_choices=False,
+    )
+    return int(idx_str)
+
+
+def play_or_queue(create_playlist=False):
+    choices = ("p", "q")
+    if create_playlist:
+        choices = choices.add("cp")
+    return click.prompt(
+        "Play now or add to queue?",
+        type=Choice(choices, case_sensitive=False),
+        show_choices=True,
+    )
 
 
 def play_content(
@@ -280,6 +250,26 @@ def play_content(
         sp_auth.start_playback(context_uri=uri, device_id=device_id)
 
 
+def display_table(data: Iterable[Iterable]) -> None:
+
+    click.echo(tabulate(data, headers="keys", tablefmt="github"))
+
+
+def wait_display_playback(sp_auth: Spotify):
+    # wait to ensure that the API returns new data
+    sleep(0.2)
+    current_playback = sp_auth.current_playback()
+    get_current_playback(res=current_playback, display=True)
+
+
+def get_auth_and_device(ctx, device):
+    sp_auth = ctx["sp_auth"]
+
+    if not device:
+        device = ctx["device_id"]
+    return device, sp_auth
+
+
 def convert_ms(duration_ms: int) -> str:
     """
     Converts milliseconds to a string representation of a timestamp (MM:SS).
@@ -287,13 +277,11 @@ def convert_ms(duration_ms: int) -> str:
 
     minutes, seconds = divmod(duration_ms / 1000, 60)
     rounded_seconds = int(round(seconds, 0))
+    seconds_str = str(rounded_seconds)
+    if len(seconds_str) < 2:
+        seconds_str = seconds_str.zfill(2)
 
-    if rounded_seconds - 10 < 0:
-        rounded_seconds = "0" + str(rounded_seconds)  # type: ignore
-
-    duration = f"{int(minutes)}:{rounded_seconds}"
-
-    return duration
+    return f"{int(minutes)}:{seconds_str}"
 
 
 def convert_timestamp(timestamp: str) -> int:
@@ -331,8 +319,7 @@ def truncate(name: str, length: int = 50) -> str:
     Truncates a string and adds an elipsis if it exceeds the specified length. Otherwise, return the unmodified string.
     """
     if len(name) > length:
-        name = name[0:length] + "..."
-
+        name = f"{name[:length]}..."
     return name
 
 
@@ -347,14 +334,15 @@ def check_url_format(url: str) -> str:
     if not match:
         raise ValueError
 
-    return "https://" + match.group()
+    return f"https://{match.group()}"
 
 
 def parse_recent_playback(
     res: dict[str, Any]
 ) -> tuple[list[int], dict[str, list], list[str]]:
     """
-    Parses the response returned by Spotify.current_user_recently_played and displays a table of information.
+    Parses the response returned by Spotify.current_user_recently_played and displays a
+    table of information.
     """
 
     positions = []
@@ -383,11 +371,18 @@ def parse_recent_playback(
         "album_type": album_types,
         "timestamp": timestamps,
     }
-    display_dict = dict(
-        (k, recent_dict[k])
-        for k in ("index", "track_name", "album_type", "album_name", "timestamp")
-    )
-    click.echo(tabulate(display_dict, headers="keys", tablefmt="github"))
+    display_dict = {
+        k: recent_dict[k]
+        for k in (
+            "index",
+            "track_name",
+            "album_type",
+            "album_name",
+            "timestamp",
+        )
+    }
+
+    display_table(display_dict)
 
     return positions, recent_dict, track_uris
 
@@ -411,7 +406,7 @@ def parse_artist_top_tracks(
             }
         )
         uris.append(track["uri"])
-    click.echo(tabulate(tracks, headers="keys", tablefmt="github"))
+    display_table(tracks)
     choices = (str(num) for num in range(len(tracks)))
 
     return uris, choices
@@ -444,7 +439,7 @@ def parse_artist_albums(
             }
         )
 
-    click.echo(tabulate(albums, headers="keys", tablefmt="github"))
+    display_table(albums)
     choices = (str(num) for num in range(len(albums)))
 
     return uris, choices
@@ -469,33 +464,36 @@ def generate_config():
         )
 
     if proceed == "y":
-        client_id = click.prompt(
-            "Provide the Spotify client ID from the developer dashboard",
-            type=SpotifyCredential(),
-        )
-        client_secret = click.prompt(
-            "Provide the Spotify client secret from the developer dashboard",
-            type=SpotifyCredential(),
-        )
-        redirect_uri = click.prompt(
-            "Provide the redirect URI you specified in the Spotify app"
-        )
-        user_id = click.prompt("Provide the Spotify user ID")
-
-        config["auth"] = {
-            "SPOTIFY_CLIENT_ID": client_id,
-            "SPOTIFY_CLIENT_SECRET": client_secret,
-            "SPOTIFY_USER_ID": user_id,
-            "SPOTIFY_REDIRECT_URI": redirect_uri,
-        }
-
-        with open(config_file, "w") as cfg:
-            config.write(cfg)
-
-        click.secho("Config file created successfully!", fg="green")
-
+        _accept_config_input(config, config_file)
     else:
         click.secho("Configuration creation canceled.")
+
+
+def _accept_config_input(config, config_file):
+    client_id = click.prompt(
+        "Provide the Spotify client ID from the developer dashboard",
+        type=SpotifyCredential(),
+    )
+    client_secret = click.prompt(
+        "Provide the Spotify client secret from the developer dashboard",
+        type=SpotifyCredential(),
+    )
+    redirect_uri = click.prompt(
+        "Provide the redirect URI you specified in the Spotify app"
+    )
+    user_id = click.prompt("Provide the Spotify user ID")
+
+    config["auth"] = {
+        "SPOTIFY_CLIENT_ID": client_id,
+        "SPOTIFY_CLIENT_SECRET": client_secret,
+        "SPOTIFY_USER_ID": user_id,
+        "SPOTIFY_REDIRECT_URI": redirect_uri,
+    }
+
+    with open(config_file, "w") as cfg:
+        config.write(cfg)
+
+    click.secho("Config file created successfully!", fg="green")
 
 
 def check_devices(res: dict[str, list[dict[str, Any]]]) -> Optional[str]:
@@ -517,7 +515,7 @@ def check_devices(res: dict[str, list[dict[str, Any]]]) -> Optional[str]:
             active_device = True
 
     if not active_device:
-        click.echo(tabulate(device_options, headers="keys", tablefmt="github"))
+        display_table(device_options)
 
         device_to_activate = click.prompt(
             "Enter the index of the device to activate",

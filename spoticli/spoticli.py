@@ -2,6 +2,7 @@ import json
 import os
 import random
 from configparser import ConfigParser
+from configparser.exceptions import Error as ConfigError
 from pathlib import Path
 from time import sleep
 from typing import Any, Optional
@@ -14,8 +15,8 @@ from click.types import Choice
 from spotipy.cache_handler import MemoryCacheHandler
 from spotipy.client import SpotifyException
 from spotipy.oauth2 import SpotifyOAuth, SpotifyOauthError
-from tabulate import tabulate
 
+from spoticli.exceptions import NoDevicesFound
 from spoticli.types import CommaSeparatedIndexRange, CommaSeparatedIndices
 from spoticli.util import (
     add_album_to_queue,
@@ -23,13 +24,18 @@ from spoticli.util import (
     check_url_format,
     convert_datetime,
     convert_timestamp,
+    display_table,
     generate_config,
     get_artist_names,
+    get_auth_and_device,
     get_current_playback,
+    get_index,
     parse_recent_playback,
+    play_or_queue,
     search_parse,
     search_proceed,
     truncate,
+    wait_display_playback,
 )
 
 SPOTIFY_USER_ID = os.environ.get("SPOTIFY_USER_ID")
@@ -84,9 +90,11 @@ def main(
                 config = ConfigParser()
                 config.read(config_file)
 
-                client_id = config["auth"]["spotify_client_id"]
-                client_secret = config["auth"]["spotify_client_secret"]
-                redirect_uri = config["auth"]["spotify_redirect_uri"]
+                auth = config["auth"]
+                client_id = auth["spotify_client_id"]
+                client_secret = auth["spotify_client_secret"]
+                redirect_uri = auth["spotify_redirect_uri"]
+                user = auth["spotify_user_id"]
 
                 sp_auth = sp.Spotify(
                     auth_manager=SpotifyOAuth(
@@ -112,22 +120,23 @@ def main(
                 sp_auth.transfer_playback(device_id=device_id, force_play=True)
                 sleep(0.2)
 
-            ctx.obj = {
-                "sp_auth": sp_auth,
-                "device_id": device_id,
-            }
+            ctx.obj = {"sp_auth": sp_auth, "device_id": device_id, "user": user}
 
-    except KeyError:
-        click.secho(
-            "Config file exists but is set up improperly. Try recreating the config file.",
-            fg="red",
-        )
-        raise
     except (SpotifyException, SpotifyOauthError) as e:
         # Spotipy uses SPOTIPY in its environment variables which might be confusing for user.
         message = str(e).replace("SPOTIPY", "SPOTIFY")
         click.secho(
             f"API authorization failed! {message}",
+            fg="red",
+        )
+        raise
+    except NoDevicesFound:
+        click.secho(
+            "No devices were found. Verify the Spotify client is open on a device."
+        )
+    except (KeyError, ConfigError):
+        click.secho(
+            "Config file exists but is set up improperly. Try recreating the config file.",
             fg="red",
         )
         raise
@@ -148,25 +157,17 @@ def previous_track(ctx: dict[str, Any], device: Optional[str]):
     """
     Skips playback to the track played previous to the current track.
     """
-    sp_auth = ctx["sp_auth"]
-
-    if not device:
-        device = ctx["device_id"]
+    device, sp_auth = get_auth_and_device(ctx, device)
 
     try:
         playback_res = sp_auth.current_playback()
-        playback: Optional[dict[str, Any]] = get_current_playback(
-            playback_res, display=False
-        )
-        if playback:
-            if playback["skip_prev_disallowed"]:
-                click.echo("No previous tracks are available to skip to.")
-            else:
-                sp_auth.previous_track(device_id=device)
-                # delay to prevent fetching current playback before it updates on server side.
-                sleep(0.2)
-                current_playback = sp_auth.current_playback()
-                get_current_playback(res=current_playback, display=True)
+        playback = get_current_playback(playback_res, display=False)
+        if playback.get("skip_prev_disallowed"):
+            click.echo("No previous tracks are available to skip to.")
+        else:
+            sp_auth.previous_track(device_id=device)
+            # delay to prevent fetching current playback before it updates on server side.
+            wait_display_playback(sp_auth)
     except AttributeError:
         # AttributeError is thrown if authorization was unsuccessful, so show that error instead.
         pass
@@ -181,17 +182,12 @@ def next_track(ctx: dict[str, Any], device: Optional[str]):
     """
     Skips playback to the next track in the queue
     """
-    sp_auth = ctx["sp_auth"]
-
-    if not device:
-        device = ctx["device_id"]
+    device, sp_auth = get_auth_and_device(ctx, device)
 
     try:
         sp_auth.next_track(device_id=device)
         # delay to prevent fetching current playback before it updates on server side.
-        sleep(0.2)
-        current_playback = sp_auth.current_playback()
-        get_current_playback(res=current_playback, display=True)
+        wait_display_playback(sp_auth)
     except AttributeError:
         # AttributeError is thrown if authorization was unsuccessful, so show that error instead.
         pass
@@ -206,22 +202,16 @@ def pause_playback(ctx: dict[str, Any], device: Optional[str]):
     """
     Pauses playback.
     """
-    sp_auth = ctx["sp_auth"]
-
-    if not device:
-        device = ctx["device_id"]
+    device, sp_auth = get_auth_and_device(ctx, device)
 
     try:
         current_playback = sp_auth.current_playback()
-        playback: Optional[dict[str, Any]] = get_current_playback(
-            current_playback, display=False
-        )
-        if playback:
-            if playback["pausing_disallowed"]:
-                click.echo("No current playback to pause.")
-            else:
-                sp_auth.pause_playback(device_id=device)
-                click.secho("Playback paused.")
+        playback = get_current_playback(current_playback, display=False)
+        if playback.get("pausing_disallowed"):
+            click.echo("No current playback to pause.")
+        else:
+            sp_auth.pause_playback(device_id=device)
+            click.echo("Playback paused.")
     except AttributeError:
         # AttributeError is thrown if authorization was unsuccessful, so show that error instead.
         pass
@@ -237,10 +227,7 @@ def start_playback(ctx: dict[str, Any], device: Optional[str], url: Optional[str
     """
     Resumes playback on the active track.
     """
-    sp_auth = ctx["sp_auth"]
-
-    if not device:
-        device = ctx["device_id"]
+    device, sp_auth = get_auth_and_device(ctx, device)
 
     try:
         if url:
@@ -251,19 +238,11 @@ def start_playback(ctx: dict[str, Any], device: Optional[str], url: Optional[str
                 sp_auth.start_playback(device_id=device, context_uri=valid_url)
         else:
             current_playback = sp_auth.current_playback()
-            playback: Optional[dict[str, Any]] = get_current_playback(
-                current_playback, display=False
-            )
-        if playback:
-            if playback["resuming_disallowed"]:
-                pass
-            else:
-                sp_auth.start_playback(device_id=device)
-                click.secho("Playback resumed.")
-
-        sleep(0.2)
-        current_playback = sp_auth.current_playback()
-        get_current_playback(res=current_playback, display=True)
+            playback = get_current_playback(current_playback, display=False)
+        if not playback.get("resuming_disallowed"):
+            sp_auth.start_playback(device_id=device)
+            click.secho("Playback resumed.")
+        wait_display_playback(sp_auth)
     except TypeError:
         # the get_current_playback function will have already displayed the error message
         pass
@@ -294,22 +273,14 @@ def create_playlist(
     Creates a new playlist.
     """
 
-    sp_auth = ctx["sp_auth"]
+    _, sp_auth = get_auth_and_device(ctx, device=None)
 
     if all((pub, c)):
         click.secho(style("Collaborative playlists can only be private.", fg="red"))
     else:
         try:
-            config_dir = Path(user_config_dir("spoticli", "joebonneau"))
-            config_file = config_dir / "spoticli.ini"
-
-            if config_file.exists():
-                config = ConfigParser()
-                config.read(config_file)
-                user = config["auth"]["SPOTIFY_USER_ID"]
-
             sp_auth.user_playlist_create(
-                user=user,
+                user=ctx["user"],
                 name=name,
                 public=pub,
                 collaborative=c,
@@ -335,10 +306,7 @@ def seek(ctx: dict[str, Any], timestamp: str, device: str):
     Timestamp format is MM:SS
     """
 
-    sp_auth = ctx["sp_auth"]
-
-    if not device:
-        device = ctx["device_id"]
+    device, sp_auth = get_auth_and_device(ctx, device)
 
     try:
         timestamp_in_ms = convert_timestamp(timestamp)
@@ -363,25 +331,17 @@ def increase_volume(ctx: dict[str, Any], amount: int, device: str):
     Increases volume by the increment specified (defaults to 10%).
     """
 
-    sp_auth = ctx["sp_auth"]
-
-    if not device:
-        device = ctx["device_id"]
+    device, sp_auth = get_auth_and_device(ctx, device)
 
     try:
         current_playback = sp_auth.current_playback()
 
-        playback_info: Optional[dict[str, Any]] = get_current_playback(
-            res=current_playback, display=False
-        )
-
-        if playback_info:
-            previous_volume = playback_info["volume"]
+        playback = get_current_playback(res=current_playback, display=False)
+        if volume := playback.get("volume"):
+            previous_volume = volume
 
         new_volume = int(round(previous_volume + amount, 0))
-        if new_volume > 100:
-            new_volume = 100
-
+        new_volume = min(new_volume, 100)
         sp_auth.volume(new_volume, device_id=device)
         click.secho(f"New volume: {new_volume}")
     except AttributeError:
@@ -400,23 +360,16 @@ def decrease_volume(ctx: dict[str, Any], amount: int, device: str):
     Decreases volume by the increment specified (defaults to 10%).
     """
 
-    sp_auth = ctx["sp_auth"]
-
-    if not device:
-        device = ctx["device_id"]
+    device, sp_auth = get_auth_and_device(ctx, device)
 
     try:
         current_playback = sp_auth.current_playback()
-        playback_info: Optional[dict[str, Any]] = get_current_playback(
-            res=current_playback, display=False
-        )
-        if playback_info:
-            previous_volume = playback_info["volume"]
+        playback = get_current_playback(res=current_playback, display=False)
+        if volume := playback.get("volume"):
+            previous_volume = volume
 
             new_volume = int(round(previous_volume - amount, 0))
-            if new_volume < 0:
-                new_volume = 0
-
+            new_volume = max(new_volume, 0)
             sp_auth.volume(new_volume, device_id=device)
             click.secho(f"New volume: {new_volume}")
     except AttributeError:
@@ -435,18 +388,16 @@ def now_playing(ctx: dict[str, Any], verbose: bool, url: str):
     Displays info about the current playback.
     """
 
-    sp_auth = ctx["sp_auth"]
+    _, sp_auth = get_auth_and_device(ctx, device=None)
 
     try:
         current_playback = sp_auth.current_playback()
-        playback: Optional[dict[str, Any]] = get_current_playback(
-            res=current_playback, display=True
-        )
-        if playback:
-            if verbose:
-                audio_features = sp_auth.audio_features(playback["track_uri"])
-                click.echo(f"BPM: {audio_features[0]['tempo']}")
-                click.echo(f"Time signature: 4/{audio_features[0]['time_signature']}")
+        playback = get_current_playback(res=current_playback, display=True)
+        track_uri = playback.get("track_uri")
+        if track_uri and verbose:
+            audio_features = sp_auth.audio_features(track_uri)
+            click.echo(f"BPM: {audio_features[0]['tempo']}")
+            click.echo(f"Time signature: 4/{audio_features[0]['time_signature']}")
             if url == "t":
                 click.echo(f"Track URL: {style(playback['track_url'], fg='magenta')}")
             elif url == "a":
@@ -467,10 +418,7 @@ def toggle_shuffle(ctx: dict[str, Any], on: bool, device: str):
     Toggles shuffling on or off.
     """
 
-    sp_auth = ctx["sp_auth"]
-
-    if not device:
-        device = ctx["device_id"]
+    device, sp_auth = get_auth_and_device(ctx, device)
 
     try:
         if on:
@@ -494,17 +442,13 @@ def get_random_saved_album(ctx: dict[str, Any], device: str):
     """
     Fetches all albums in user library and selects one randomly.
     """
-
-    # Only 50 albums can be retrieved at a time, so make as many requests as necessary to retrieve
-    # all in library.
-    sp_auth = ctx["sp_auth"]
-
-    if not device:
-        device = ctx["device_id"]
+    device, sp_auth = get_auth_and_device(ctx, device)
 
     try:
-        saved_albums = []
+        saved_albums: list[dict] = []
         offset = 0
+        # Only 50 albums can be retrieved at a time, so make as many requests as
+        # necessary to retrieve all in library.
         while True:
             albums_res = sp_auth.current_user_saved_albums(limit=50, offset=offset)
             if offset == 0:
@@ -513,14 +457,14 @@ def get_random_saved_album(ctx: dict[str, Any], device: str):
                     fg="magenta",
                 )
             albums = albums_res["items"]
-            for album in albums:
-                saved_albums.append(
-                    {
-                        "album_uri": album["album"]["uri"],
-                        "artists": get_artist_names(album["album"]),
-                        "album": album["album"]["name"],
-                    }
-                )
+            saved_albums.extend(
+                {
+                    "album_uri": album["album"]["uri"],
+                    "artists": get_artist_names(album["album"]),
+                    "album": album["album"]["name"],
+                }
+                for album in albums
+            )
             if len(albums) < 50:
                 break
             else:
@@ -546,20 +490,14 @@ def get_random_saved_album(ctx: dict[str, Any], device: str):
             else:
                 break
 
-        queue = click.prompt(
-            "Play album now or add to queue?",
-            type=Choice(("p", "q"), case_sensitive=False),
-            show_choices=True,
-        )
+        queue = play_or_queue()
         if queue == "q":
             add_album_to_queue(sp_auth, saved_albums[rand_i]["album_uri"])
         else:
             sp_auth.start_playback(
                 context_uri=saved_albums[rand_i]["album_uri"], device_id=device
             )
-            sleep(0.2)
-            current_playback = sp_auth.current_playback()
-            get_current_playback(res=current_playback, display=True)
+            wait_display_playback(sp_auth)
     except AttributeError:
         # AttributeError is thrown if authorization was unsuccessful, so show that error instead.
         pass
@@ -574,13 +512,11 @@ def add_current_track_to_playlists(ctx: dict[str, Any]):
     Adds the current track in playback to one or more playlist(s).
     """
 
-    sp_auth = ctx["sp_auth"]
+    _, sp_auth = get_auth_and_device(ctx, device=None)
 
     try:
         current_playback = sp_auth.current_playback()
-        playback: Optional[dict[str, Any]] = get_current_playback(
-            res=current_playback, display=True
-        )
+        playback = get_current_playback(res=current_playback, display=True)
 
         playlist_res = sp_auth.current_user_playlists(limit=20)
         positions = []
@@ -598,24 +534,26 @@ def add_current_track_to_playlists(ctx: dict[str, Any]):
             "playlist_ids": playlist_ids,
         }
         display_dict = {"index": positions, "playlist_names": playlist_names}
-        click.echo(tabulate(display_dict, headers="keys", tablefmt="github"))
+        display_table(display_dict)
 
         indices = click.prompt(
             "Enter the indices of the playlists to add the track to separated by commas",
             type=CommaSeparatedIndices([str(i) for i in positions]),
             show_choices=False,
         )
-        if playback:
+        track_uri = playback.get("track_uri")
+        if track_uri:
             for index in indices:
-                items = [playback["track_uri"]]
+                items = [track_uri]
                 sp_auth.playlist_add_items(
                     playlist_id=playlist_dict["playlist_ids"][index],
                     items=items,
                 )
-
-            click.echo(
-                f"{style(playback['track_name'], fg='magenta')} {style('was successfully added to all specified playlists!', fg='green')}"
+            track_name = style(playback["track_name"], fg="magenta")
+            rest_of_the_msg = style(
+                "was successfully added to all specified playlists!", fg="green"
             )
+            click.echo(f"{track_name} {rest_of_the_msg}")
 
     except AttributeError:
         # AttributeError is thrown if authorization was unsuccessful, so show that error instead.
@@ -637,10 +575,7 @@ def recently_played(
     Displays information about recently played tracks.
     """
 
-    sp_auth = ctx["sp_auth"]
-
-    if not device:
-        device = ctx["device_id"]
+    device, sp_auth = get_auth_and_device(ctx, device)
 
     try:
         if after:
@@ -652,11 +587,7 @@ def recently_played(
 
         positions, recent_dict, track_uris = parse_recent_playback(recent_playback)
 
-        task = click.prompt(
-            "Play now, add to queue, or create playlist?",
-            type=Choice(("p", "q", "cp"), case_sensitive=False),
-            show_choices=True,
-        )
+        task = play_or_queue(create_playlist=True)
         if task == "cp":
             indices = click.prompt(
                 "Enter the indices of the tracks to add to the playlist separated by commas",
@@ -665,15 +596,7 @@ def recently_played(
             )
             playlist_name = click.prompt("Enter the playlist name")
 
-            config_dir = Path(user_config_dir("spoticli", "joebonneau"))
-            config_file = config_dir / "spoticli.ini"
-
-            if config_file.exists():
-                config = ConfigParser()
-                config.read(config_file)
-                user = config["auth"]["SPOTIFY_USER_ID"]
-
-            sp_auth.user_playlist_create(user=user, name=playlist_name)
+            sp_auth.user_playlist_create(user=ctx["user"], name=playlist_name)
             playlist_res = sp_auth.current_user_playlists(limit=1)
             playlist_uri = playlist_res["items"][0]["uri"]
             sp_auth.playlist_add_items(
@@ -685,13 +608,7 @@ def recently_played(
                 fg="green",
             )
         elif task in ("p", "q"):
-            index = int(
-                click.prompt(
-                    "Enter the index of interest",
-                    type=Choice([str(i) for i in positions]),
-                    show_choices=False,
-                )
-            )
+            index = get_index([str(i) for i in positions])
             item_type = click.prompt(
                 "Track or associated album?",
                 type=Choice(("t", "a"), case_sensitive=False),
@@ -712,9 +629,7 @@ def recently_played(
                     context_uri=recent_dict["album_uri"][index],
                     device_id=device,
                 )
-            sleep(0.2)
-            current_playback = sp_auth.current_playback()
-            get_current_playback(res=current_playback, display=True)
+            wait_display_playback(sp_auth)
     except ValueError:
         click.secho("Invalid format. Proper format is 'YYYYMMDD MM:SS", fg="red")
     except AttributeError:
@@ -738,12 +653,9 @@ def search(ctx: dict[str, Any], term: str, type_: str, device: str):
     """
     Queries Spotify's databases.
     """
-    sp_auth = ctx["sp_auth"]
+    device, sp_auth = get_auth_and_device(ctx, device)
 
-    if not device:
-        device = ctx["device_id"]
-
-    k = type_ + "s"
+    k = f"{type_}s"
     try:
         search_res = sp_auth.search(q=term, limit=10, type=type_)
         results, uris = search_parse(search_res, k)
@@ -763,10 +675,7 @@ def add_to_queue(ctx: dict[str, Any], url: str, device: str):
     Adds a track or album to the queue from a Spotify URL.
     """
 
-    sp_auth = ctx["sp_auth"]
-
-    if not device:
-        device = ctx["device_id"]
+    device, sp_auth = get_auth_and_device(ctx, device)
 
     try:
         valid_url = check_url_format(url)
@@ -791,10 +700,11 @@ def save_playlist_albums(
     url: str,
 ):
     """
-    Retrieves all albums from a given playlist and allows the user to add them to their library.
+    Retrieves all albums from a given playlist and allows the user to add them to their
+    library.
     """
 
-    sp_auth = ctx["sp_auth"]
+    _, sp_auth = get_auth_and_device(ctx, device=None)
 
     fields = "items(track(album(album_type,artists(name),name,total_tracks,uri,release_date)))"
 
@@ -841,7 +751,7 @@ def save_playlist_albums(
                     )
                     album_uris.append(item_album["uri"])
                     index += 1
-        click.echo(tabulate(album_items, headers="keys", tablefmt="github"))
+        display_table(album_items)
         add_all_albums = click.prompt(
             "Add all albums to user library?",
             type=Choice(("y", "n")),

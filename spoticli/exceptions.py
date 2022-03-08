@@ -1,0 +1,2 @@
+class NoDevicesFound(Exception):
+    pass
