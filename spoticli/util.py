@@ -192,7 +192,7 @@ def search_proceed(
         action = play_or_queue()
         if action == "p":
             sp_auth.start_playback(uris=[uris[index]], device_id=device)
-            _extracted_from_search_proceed_18(sp_auth)
+            wait_display_playback(sp_auth, sleep_time=0.5)
         elif type_ == "album":
             add_album_to_queue(sp_auth, uris[index], device=device)
         elif type_ == "playlist":
@@ -208,13 +208,6 @@ def search_proceed(
         elif type_ == "track":
             sp_auth.add_to_queue(uris[index], device_id=device)
             click.secho("Track added to queue successfully!", fg="green")
-
-
-# TODO Rename this here and in `search_proceed`
-def _extracted_from_search_proceed_18(sp_auth):
-    sleep(0.5)
-    current_playback = sp_auth.current_playback()
-    get_current_playback(current_playback, display=True)
 
 
 def get_index(choices):
@@ -255,9 +248,9 @@ def display_table(data: Iterable[Iterable]) -> None:
     click.echo(tabulate(data, headers="keys", tablefmt="github"))
 
 
-def wait_display_playback(sp_auth: Spotify):
+def wait_display_playback(sp_auth: Spotify, sleep_time=0.2):
     # wait to ensure that the API returns new data
-    sleep(0.2)
+    sleep(sleep_time)
     current_playback = sp_auth.current_playback()
     get_current_playback(res=current_playback, display=True)
 
