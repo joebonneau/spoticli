@@ -2,7 +2,7 @@ import json
 import os
 import random
 from configparser import ConfigParser
-from configparser.exceptions import Error as ConfigError
+from configparser import Error as ConfigError
 from pathlib import Path
 from time import sleep
 from typing import Any, Optional
@@ -16,9 +16,9 @@ from spotipy.cache_handler import MemoryCacheHandler
 from spotipy.client import SpotifyException
 from spotipy.oauth2 import SpotifyOAuth, SpotifyOauthError
 
-from spoticli.exceptions import NoDevicesFound
 from spoticli.types import CommaSeparatedIndexRange, CommaSeparatedIndices
 from spoticli.util import (
+    Y_N_CHOICE_CASE_INSENSITIVE,
     add_album_to_queue,
     check_devices,
     check_url_format,
@@ -130,10 +130,6 @@ def main(
             fg="red",
         )
         raise
-    except NoDevicesFound:
-        click.secho(
-            "No devices were found. Verify the Spotify client is open on a device."
-        )
     except (KeyError, ConfigError):
         click.secho(
             "Config file exists but is set up improperly. Try recreating the config file.",
@@ -481,7 +477,7 @@ def get_random_saved_album(ctx: dict[str, Any], device: str):
             )
             new_album = click.prompt(
                 "Select this album?",
-                type=Choice(("y", "n"), case_sensitive=False),
+                type=Y_N_CHOICE_CASE_INSENSITIVE,
                 show_choices=True,
             )
             if new_album == "n":
@@ -659,6 +655,7 @@ def search(ctx: dict[str, Any], term: str, type_: str, device: str):
     try:
         search_res = sp_auth.search(q=term, limit=10, type=type_)
         results, uris = search_parse(search_res, k)
+        display_table(results)
         search_proceed(sp_auth, type_, results, uris, device=device)
     except AttributeError:
         pass
@@ -754,7 +751,7 @@ def save_playlist_albums(
         display_table(album_items)
         add_all_albums = click.prompt(
             "Add all albums to user library?",
-            type=Choice(("y", "n")),
+            type=Y_N_CHOICE_CASE_INSENSITIVE,
             show_choices=True,
         )
 

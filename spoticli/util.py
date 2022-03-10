@@ -5,17 +5,41 @@ from datetime import datetime
 from os import mkdir
 from pathlib import Path
 from time import sleep
-from typing import Any, Generator, Iterable, Optional
+from typing import Any, Iterable, Optional
 
 import click
 from appdirs import user_config_dir
+from click import IntRange
 from click.termui import style
 from click.types import Choice
 from spotipy.client import Spotify
 from tabulate import tabulate
 from tqdm import tqdm
 
+from spoticli.exceptions import InvalidURL, NoDevicesFound
 from spoticli.types import SpotifyCredential
+
+Y_N_CHOICE_CASE_INSENSITIVE = Choice(("y", "n"), case_sensitive=False)
+
+
+def get_index(choices):
+    idx_str = click.prompt(
+        "Enter the index",
+        type=choices,  # type: ignore
+        show_choices=False,
+    )
+    return int(idx_str)
+
+
+def play_or_queue(create_playlist=False):
+    choices = ("p", "q")
+    if create_playlist:
+        choices = choices.add("cp")
+    return click.prompt(
+        "Play now or add to queue?",
+        type=Choice(choices, case_sensitive=False),
+        show_choices=True,
+    )
 
 
 def add_playlist_to_queue(sp_auth, uri: str, device: Optional[str] = None) -> None:
@@ -122,8 +146,8 @@ def search_parse(res: dict[str, Any], k: str) -> tuple[list[dict[str, Any]], lis
     items = res[k]["items"]
     uris = []
     results = []
-    if k == "albums":
-        for i, item in enumerate(items):
+    for i, item in enumerate(items):
+        if k == "albums":
             artists = get_artist_names(item)
             name = item["name"]
             uris.append(item["uri"])
@@ -135,14 +159,10 @@ def search_parse(res: dict[str, Any], k: str) -> tuple[list[dict[str, Any]], lis
                     "release date": item["release_date"],
                 }
             )
-    elif k == "artists":
-        results = []
-        for i, item in enumerate(items):
+        elif k == "artists":
             results.append({"index": i, "artist": truncate(item["name"])})
             uris.append(item["uri"])
-    elif k == "playlists":
-        results = []
-        for i, item in enumerate(items):
+        elif k == "playlists":
             desc = item["description"]
             uris.append(item["uri"])
             results.append(
@@ -154,10 +174,7 @@ def search_parse(res: dict[str, Any], k: str) -> tuple[list[dict[str, Any]], lis
                     "tracks": item["tracks"]["total"],
                 }
             )
-    elif k == "tracks":
-        results = []
-        uris = []
-        for i, item in enumerate(items):
+        elif k == "tracks":
             artists = get_artist_names(item)
             name = item["name"]
             uris.append(item["uri"])
@@ -182,11 +199,13 @@ def search_proceed(
     uris: list[str],
     device: Optional[str] = None,
 ) -> None:
-
-    display_table(results)
-
+    choices = IntRange(min=0, max=len(results) - 1)
+    index = click.prompt(
+        "Enter the index",
+        type=choices,
+        show_choices=False,
+    )
     if type_ != "artist":
-        choices = (str(num) for num in range(len(results)))
         index = get_index(choices)
 
         action = play_or_queue()
@@ -198,7 +217,7 @@ def search_proceed(
         elif type_ == "playlist":
             confirmation = click.prompt(
                 f"Are you sure you want to add all {results[index]['tracks']} tracks?",
-                type=Choice(("y", "n"), case_sensitive=False),
+                type=Y_N_CHOICE_CASE_INSENSITIVE,
                 show_choices=True,
             )
             if confirmation == "y":
@@ -208,26 +227,47 @@ def search_proceed(
         elif type_ == "track":
             sp_auth.add_to_queue(uris[index], device_id=device)
             click.secho("Track added to queue successfully!", fg="green")
+    else:
+        album_or_track = click.prompt(
+            "View artist albums or most popular tracks?",
+            type=Choice(("a", "t"), case_sensitive=False),
+            show_choices=True,
+        )
+        if album_or_track == "a":
+            artist_albums_res = sp_auth.artist_albums(
+                uris[index], album_type="album,single"
+            )
+            uris, choices = parse_artist_albums(artist_albums_res)
+        else:
+            artist_tracks_res = sp_auth.artist_top_tracks(uris[index])
+            uris, choices = parse_artist_top_tracks(artist_tracks_res)
 
-
-def get_index(choices):
-    idx_str = click.prompt(
-        "Enter the index",
-        type=Choice(choices),  # type: ignore
-        show_choices=False,
-    )
-    return int(idx_str)
-
-
-def play_or_queue(create_playlist=False):
-    choices = ("p", "q")
-    if create_playlist:
-        choices = choices.add("cp")
-    return click.prompt(
-        "Play now or add to queue?",
-        type=Choice(choices, case_sensitive=False),
-        show_choices=True,
-    )
+        index = int(
+            click.prompt(
+                "Enter the index",
+                type=choices,
+                show_choices=False,
+            )
+        )
+        p_or_q = click.prompt(
+            "Play now or add to queue?",
+            type=Choice(("p", "q"), case_sensitive=False),
+            show_choices=True,
+        )
+        if p_or_q == "p":
+            play_content(
+                sp_auth=sp_auth,
+                uri=uris[index],
+                album_or_track=album_or_track,
+                device_id=device,
+            )
+            wait_display_playback(sp_auth, sleep_time=0.5)
+        else:
+            if album_or_track == "a":
+                add_album_to_queue(sp_auth, uris[index], device=device)
+            else:
+                sp_auth.add_to_queue(uris[index], device_id=device)
+                click.secho("Successfully added to queue!", fg="green")
 
 
 def play_content(
@@ -236,7 +276,6 @@ def play_content(
     album_or_track: str,
     device_id: str = None,
 ):
-
     if album_or_track == "t":
         sp_auth.start_playback(uris=[uri], device_id=device_id)
     elif album_or_track == "a":
@@ -244,7 +283,6 @@ def play_content(
 
 
 def display_table(data: Iterable[Iterable]) -> None:
-
     click.echo(tabulate(data, headers="keys", tablefmt="github"))
 
 
@@ -309,7 +347,8 @@ def convert_datetime(datetime_str: str) -> int:
 
 def truncate(name: str, length: int = 50) -> str:
     """
-    Truncates a string and adds an elipsis if it exceeds the specified length. Otherwise, return the unmodified string.
+    Truncates a string and adds an elipsis if it exceeds the specified length.
+    Otherwise, return the unmodified string.
     """
     if len(name) > length:
         name = f"{name[:length]}..."
@@ -318,14 +357,15 @@ def truncate(name: str, length: int = 50) -> str:
 
 def check_url_format(url: str) -> str:
     """
-    Performs a simple URL validation check. Definitely won't catch all errors, but will eliminate most.
+    Performs a simple URL validation check. Definitely won't catch all errors, but will
+    eliminate most.
     """
 
     pattern = r"open.spotify.com/[a-z]{5,8}/\w{22}"
 
     match = re.search(pattern, url)
     if not match:
-        raise ValueError
+        raise InvalidURL("Invalid URL was provided.")
 
     return f"https://{match.group()}"
 
@@ -380,9 +420,7 @@ def parse_recent_playback(
     return positions, recent_dict, track_uris
 
 
-def parse_artist_top_tracks(
-    res: dict[str, Any]
-) -> tuple[list[str], Generator[str, None, None]]:
+def parse_artist_top_tracks(res: dict[str, Any]) -> tuple[list[str], IntRange]:
     """
     Parses the response returned by Spotify.artist_top_tracks and displays a table of information.
     """
@@ -400,14 +438,12 @@ def parse_artist_top_tracks(
         )
         uris.append(track["uri"])
     display_table(tracks)
-    choices = (str(num) for num in range(len(tracks)))
+    choices = IntRange(min=0, max=len(tracks) - 1)
 
     return uris, choices
 
 
-def parse_artist_albums(
-    res: dict[str, Any]
-) -> tuple[list[str], Generator[str, None, None]]:
+def parse_artist_albums(res: dict[str, Any]) -> tuple[list[str], IntRange]:
     """
     Parses the response returned by Spotify.artist_albums and displays a table of information.
     """
@@ -433,7 +469,7 @@ def parse_artist_albums(
         )
 
     display_table(albums)
-    choices = (str(num) for num in range(len(albums)))
+    choices = IntRange(min=0, max=len(albums) - 1)
 
     return uris, choices
 
@@ -448,11 +484,10 @@ def generate_config():
         mkdir(config_dir)
 
     proceed = "y"
-
     if config_file.exists():
         proceed = click.prompt(
             "A config file already exists. Do you want to overwrite its contents?",
-            type=Choice(("y", "n"), case_sensitive=False),
+            type=Y_N_CHOICE_CASE_INSENSITIVE,
             show_choices=True,
         )
 
@@ -491,7 +526,6 @@ def _accept_config_input(config, config_file):
 
 def check_devices(res: dict[str, list[dict[str, Any]]]) -> Optional[str]:
 
-    device_id = None
     active_device = False
     device_options: list[dict[str, Any]] = []
     for i, device in enumerate(res["devices"]):
@@ -507,15 +541,22 @@ def check_devices(res: dict[str, list[dict[str, Any]]]) -> Optional[str]:
         if device["is_active"]:
             active_device = True
 
-    if not active_device:
-        display_table(device_options)
-
-        device_to_activate = click.prompt(
-            "Enter the index of the device to activate",
-            type=Choice([str(i) for i in range(len(device_options))]),
-            show_choices=False,
+    if not device_options:
+        raise NoDevicesFound(
+            "No devices were found. Verify the Spotify client is open on a device."
         )
 
-        device_id = device_options[int(device_to_activate)]["id"]
+    if not active_device:
+        if len(device_options) == 1:
+            device_to_activate = 0
+        else:
+            display_table(device_options)
 
-    return device_id
+            device_to_activate = click.prompt(
+                "Enter the index of the device to activate",
+                type=IntRange(min=0, max=len(device_options) - 1),
+                show_choices=False,
+            )
+
+        return device_options[int(device_to_activate)]["id"]
+    return None
