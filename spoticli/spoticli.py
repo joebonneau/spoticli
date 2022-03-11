@@ -16,6 +16,7 @@ from spotipy.cache_handler import MemoryCacheHandler
 from spotipy.client import SpotifyException
 from spotipy.oauth2 import SpotifyOAuth, SpotifyOauthError
 
+from spoticli.commands.search import search as search_cmd
 from spoticli.types import CommaSeparatedIndexRange, CommaSeparatedIndices
 from spoticli.util import (
     Y_N_CHOICE_CASE_INSENSITIVE,
@@ -32,8 +33,6 @@ from spoticli.util import (
     get_index,
     parse_recent_playback,
     play_or_queue,
-    search_parse,
-    search_proceed,
     truncate,
     wait_display_playback,
 )
@@ -643,24 +642,14 @@ def recently_played(
     type=click.Choice(("album", "artist", "playlist", "track")),
     required=True,
 )
-@click.argument("term", required=True)
+@click.argument("query", required=True)
 @click.pass_obj
-def search(ctx: dict[str, Any], term: str, type_: str, device: str):
+def search(ctx: dict[str, Any], query: str, type_: str, device: str):
     """
     Queries Spotify's databases.
     """
     device, sp_auth = get_auth_and_device(ctx, device)
-
-    k = f"{type_}s"
-    try:
-        search_res = sp_auth.search(q=term, limit=10, type=type_)
-        results, uris = search_parse(search_res, k)
-        display_table(results)
-        search_proceed(sp_auth, type_, results, uris, device=device)
-    except AttributeError:
-        pass
-    except SpotifyException as e:
-        click.secho(str(e), fg="red")
+    search_cmd(sp_auth=sp_auth, query=query, type_=type_, device=device)
 
 
 @main.command("atq")

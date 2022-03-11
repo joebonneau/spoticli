@@ -199,15 +199,9 @@ def search_proceed(
     uris: list[str],
     device: Optional[str] = None,
 ) -> None:
-    choices = IntRange(min=0, max=len(results) - 1)
-    index = click.prompt(
-        "Enter the index",
-        type=choices,
-        show_choices=False,
-    )
-    if type_ != "artist":
-        index = get_index(choices)
 
+    index = get_index(IntRange(min=0, max=len(results) - 1))
+    if type_ != "artist":
         action = play_or_queue()
         if action == "p":
             sp_auth.start_playback(uris=[uris[index]], device_id=device)
