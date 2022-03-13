@@ -16,7 +16,7 @@ from spotipy.cache_handler import MemoryCacheHandler
 from spotipy.client import SpotifyException
 from spotipy.oauth2 import SpotifyOAuth, SpotifyOauthError
 
-from spoticli.commands.search import search as search_cmd
+import spoticli.commands as commands
 from spoticli.types import CommaSeparatedIndexRange, CommaSeparatedIndices
 from spoticli.util import (
     Y_N_CHOICE_CASE_INSENSITIVE,
@@ -649,7 +649,7 @@ def search(ctx: dict[str, Any], query: str, type_: str, device: str):
     Queries Spotify's databases.
     """
     device, sp_auth = get_auth_and_device(ctx, device)
-    search_cmd(sp_auth=sp_auth, query=query, type_=type_, device=device)
+    commands.search(sp_auth=sp_auth, query=query, type_=type_, device=device)
 
 
 @main.command("atq")
@@ -689,77 +689,6 @@ def save_playlist_albums(
     Retrieves all albums from a given playlist and allows the user to add them to their
     library.
     """
-
+    check_url_format(url)
     _, sp_auth = get_auth_and_device(ctx, device=None)
-
-    fields = "items(track(album(album_type,artists(name),name,total_tracks,uri,release_date)))"
-
-    try:
-        check_url_format(url)
-        click.secho("Retrieving all albums and EPs from the playlist...", fg="magenta")
-        playlist_items = sp_auth.playlist_items(playlist_id=url, fields=fields)
-        album_items = []
-        album_uris = []
-        index = 0
-        for item in playlist_items["items"]:
-            item_album = item["track"]["album"]
-            if item_album["total_tracks"] > 1 and item_album["album_type"] == "single":
-                is_album_saved = sp_auth.current_user_saved_albums_contains(
-                    albums=[item_album["uri"]]
-                )
-                if not is_album_saved[0]:
-                    album_items.append(
-                        {
-                            "index": index,
-                            "artists": truncate(get_artist_names(item_album), 40),
-                            "album": truncate(item_album["name"], 40),
-                            "album_type": "EP",
-                            "total_tracks": item_album["total_tracks"],
-                            "release_date": item_album["release_date"],
-                        }
-                    )
-                    album_uris.append(item_album["uri"])
-                    index += 1
-            elif item_album["album_type"] == "album":
-                is_album_saved = sp_auth.current_user_saved_albums_contains(
-                    albums=[item_album["uri"]]
-                )
-                if not is_album_saved[0]:
-                    album_items.append(
-                        {
-                            "index": index,
-                            "artists": truncate(get_artist_names(item_album), 40),
-                            "album": truncate(item_album["name"], 40),
-                            "album_type": item_album["album_type"],
-                            "total_tracks": item_album["total_tracks"],
-                            "release_date": item_album["release_date"],
-                        }
-                    )
-                    album_uris.append(item_album["uri"])
-                    index += 1
-        display_table(album_items)
-        add_all_albums = click.prompt(
-            "Add all albums to user library?",
-            type=Y_N_CHOICE_CASE_INSENSITIVE,
-            show_choices=True,
-        )
-
-        if add_all_albums == "y":
-            sp_auth.current_user_saved_albums_add(albums=album_uris)
-        else:
-            album_selection = click.prompt(
-                "Enter the indices of albums to add (separated by a comma)",
-                type=CommaSeparatedIndices([str(i) for i in range(len(album_uris))]),
-                show_choices=False,
-            )
-
-            album_sublist = [album_uris[i] for i in album_selection]
-            sp_auth.current_user_saved_albums_add(albums=album_sublist)
-
-        click.secho("Albums successfully added to user library!", fg="green")
-    except ValueError:
-        click.secho("An invalid URL was provided.", fg="red")
-    except AttributeError:
-        pass
-    except SpotifyException as e:
-        click.secho(str(e), fg="red")
+    commands.save_playlist_items(sp_auth, url)
