@@ -32,9 +32,7 @@ def get_index(choices):
 
 
 def play_or_queue(create_playlist=False):
-    choices = ("p", "q")
-    if create_playlist:
-        choices = choices.add("cp")
+    choices = ("p", "q", "cp") if create_playlist else ("p", "q")
     return click.prompt(
         "Play now or add to queue?",
         type=Choice(choices, case_sensitive=False),
@@ -241,56 +239,6 @@ def check_url_format(url: str) -> str:
     return f"https://{match.group()}"
 
 
-def parse_recent_playback(
-    res: dict[str, Any]
-) -> tuple[list[int], dict[str, list], list[str]]:
-    """
-    Parses the response returned by Spotify.current_user_recently_played and displays a
-    table of information.
-    """
-
-    positions = []
-    track_names = []
-    track_uris = []
-    album_names = []
-    album_uris = []
-    album_types = []
-    timestamps = []
-    playback_items = res["items"]
-    for i, item in enumerate(playback_items):
-        positions.append(i)
-        track_names.append(item["track"]["name"])
-        track_uris.append(item["track"]["uri"])
-        album_names.append(item["track"]["album"]["name"])
-        album_uris.append(item["track"]["album"]["uri"])
-        album_types.append(item["track"]["album"]["album_type"])
-        timestamps.append(item["played_at"])
-
-    recent_dict = {
-        "index": positions,
-        "track_name": track_names,
-        "track_uri": track_uris,
-        "album_name": album_names,
-        "album_uri": album_uris,
-        "album_type": album_types,
-        "timestamp": timestamps,
-    }
-    display_dict = {
-        k: recent_dict[k]
-        for k in (
-            "index",
-            "track_name",
-            "album_type",
-            "album_name",
-            "timestamp",
-        )
-    }
-
-    display_table(display_dict)
-
-    return positions, recent_dict, track_uris
-
-
 def parse_artist_top_tracks(res: dict[str, Any]) -> tuple[list[str], IntRange]:
     """
     Parses the response returned by Spotify.artist_top_tracks and displays a table of information.
@@ -343,56 +291,6 @@ def parse_artist_albums(res: dict[str, Any]) -> tuple[list[str], IntRange]:
     choices = IntRange(min=0, max=len(albums) - 1)
 
     return uris, choices
-
-
-def generate_config():
-
-    config_dir = Path(user_config_dir()) / "spoticli"
-    config_file = config_dir / "spoticli.ini"
-    config = ConfigParser()
-
-    if not config_dir.exists():
-        mkdir(config_dir)
-
-    proceed = "y"
-    if config_file.exists():
-        proceed = click.prompt(
-            "A config file already exists. Do you want to overwrite its contents?",
-            type=Y_N_CHOICE_CASE_INSENSITIVE,
-            show_choices=True,
-        )
-
-    if proceed == "y":
-        _accept_config_input(config, config_file)
-    else:
-        click.secho("Configuration creation canceled.")
-
-
-def _accept_config_input(config, config_file):
-    client_id = click.prompt(
-        "Provide the Spotify client ID from the developer dashboard",
-        type=SpotifyCredential(),
-    )
-    client_secret = click.prompt(
-        "Provide the Spotify client secret from the developer dashboard",
-        type=SpotifyCredential(),
-    )
-    redirect_uri = click.prompt(
-        "Provide the redirect URI you specified in the Spotify app"
-    )
-    user_id = click.prompt("Provide the Spotify user ID")
-
-    config["auth"] = {
-        "SPOTIFY_CLIENT_ID": client_id,
-        "SPOTIFY_CLIENT_SECRET": client_secret,
-        "SPOTIFY_USER_ID": user_id,
-        "SPOTIFY_REDIRECT_URI": redirect_uri,
-    }
-
-    with open(config_file, "w") as cfg:
-        config.write(cfg)
-
-    click.secho("Config file created successfully!", fg="green")
 
 
 def check_devices(res: dict[str, list[dict[str, Any]]]) -> Optional[str]:
