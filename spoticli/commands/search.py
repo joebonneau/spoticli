@@ -3,22 +3,105 @@ from typing import Any, Optional
 import click
 from click import Choice, IntRange
 from spotipy.client import Spotify, SpotifyException
+from tqdm import tqdm
 
 from spoticli.util import (
     Y_N_CHOICE_CASE_INSENSITIVE,
     add_album_to_queue,
-    add_playlist_to_queue,
     convert_ms,
     display_table,
     get_artist_names,
     get_index,
-    parse_artist_albums,
-    parse_artist_top_tracks,
-    play_content,
     play_or_queue,
     truncate,
     wait_display_playback,
 )
+
+
+def parse_artist_top_tracks(res: dict[str, Any]) -> tuple[list[str], IntRange]:
+    """
+    Parses the response returned by Spotify.artist_top_tracks and displays a table of information.
+    """
+
+    tracks = []
+    uris = []
+    for i, track in enumerate(res["tracks"]):
+        tracks.append(
+            {
+                "index": i,
+                "name": track["name"],
+                "artists": get_artist_names(track["album"]),
+                "popularity": track["popularity"],
+            }
+        )
+        uris.append(track["uri"])
+    display_table(tracks)
+    choices = IntRange(min=0, max=len(tracks) - 1)
+
+    return uris, choices
+
+
+def parse_artist_albums(res: dict[str, Any]) -> tuple[list[str], IntRange]:
+    """
+    Parses the response returned by Spotify.artist_albums and displays a table of information.
+    """
+
+    albums = []
+    uris = []
+    for i, item in enumerate(res["items"]):
+        album_type = item["album_type"]
+        artists = truncate(get_artist_names(item))
+        album_name = item["name"]
+        release_date = item["release_date"]
+        total_tracks = item["total_tracks"]
+        uris.append(item["uri"])
+        albums.append(
+            {
+                "index": i,
+                "artist(s)": artists,
+                "album name": album_name,
+                "album type": album_type,
+                "tracks": total_tracks,
+                "release date": release_date,
+            }
+        )
+
+    display_table(albums)
+    choices = IntRange(min=0, max=len(albums) - 1)
+
+    return uris, choices
+
+
+def play_content(
+    sp_auth: Spotify,
+    uri: str,
+    album_or_track: str,
+    device_id: str = None,
+):
+    uri = [uri] if album_or_track == "t" else None
+    context_uri = uri if album_or_track == "a" else None
+    sp_auth.start_playback(uris=uri, context_uri=context_uri, device_id=device_id)
+
+
+def add_playlist_to_queue(sp_auth, uri: str, device: Optional[str] = None) -> None:
+    """
+    Adds all tracks from a playlist to the queue.
+    """
+
+    offset = 0
+    click.secho("Adding playlist tracks to queue...", fg="magenta")
+    while True:
+        playlists_res = sp_auth.playlist_items(
+            uri, limit=100, fields="items.track.uri", offset=offset
+        )
+        for item in tqdm(playlists_res["items"]):
+            sp_auth.add_to_queue(item["track"]["uri"], device_id=device)
+        if len(playlists_res) < 100:
+            break
+
+        offset += 100
+
+    click.secho("All playlist tracks added successfully!", fg="green")
 
 
 def parse_album_search(res: dict[str, Any]) -> tuple[list[dict[str, Any]], list[str]]:

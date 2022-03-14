@@ -1,23 +1,15 @@
 import re
 import time
-from configparser import ConfigParser
 from datetime import datetime
-from os import mkdir
-from pathlib import Path
 from time import sleep
 from typing import Any, Iterable, Optional
 
 import click
-from appdirs import user_config_dir
-from click import IntRange
 from click.termui import style
 from click.types import Choice
 from spotipy.client import Spotify
 from tabulate import tabulate
 from tqdm import tqdm
-
-from spoticli.exceptions import InvalidURL, NoDevicesFound
-from spoticli.types import SpotifyCredential
 
 Y_N_CHOICE_CASE_INSENSITIVE = Choice(("y", "n"), case_sensitive=False)
 
@@ -25,7 +17,7 @@ Y_N_CHOICE_CASE_INSENSITIVE = Choice(("y", "n"), case_sensitive=False)
 def get_index(choices):
     idx_str = click.prompt(
         "Enter the index",
-        type=choices,  # type: ignore
+        type=choices,
         show_choices=False,
     )
     return int(idx_str)
@@ -38,27 +30,6 @@ def play_or_queue(create_playlist=False):
         type=Choice(choices, case_sensitive=False),
         show_choices=True,
     )
-
-
-def add_playlist_to_queue(sp_auth, uri: str, device: Optional[str] = None) -> None:
-    """
-    Adds all tracks from a playlist to the queue.
-    """
-
-    offset = 0
-    click.secho("Adding playlist tracks to queue...", fg="magenta")
-    while True:
-        playlists_res = sp_auth.playlist_items(
-            uri, limit=100, fields="items.track.uri", offset=offset
-        )
-        for item in tqdm(playlists_res["items"]):
-            sp_auth.add_to_queue(item["track"]["uri"], device_id=device)
-        if len(playlists_res) < 100:
-            break
-
-        offset += 100
-
-    click.secho("All playlist tracks added successfully!", fg="green")
 
 
 def add_album_to_queue(
@@ -139,18 +110,6 @@ def _display_current_feedback(playback):
     )
 
 
-def play_content(
-    sp_auth: Spotify,
-    uri: str,
-    album_or_track: str,
-    device_id: str = None,
-):
-    if album_or_track == "t":
-        sp_auth.start_playback(uris=[uri], device_id=device_id)
-    elif album_or_track == "a":
-        sp_auth.start_playback(context_uri=uri, device_id=device_id)
-
-
 def display_table(data: Iterable[Iterable]) -> None:
     click.echo(tabulate(data, headers="keys", tablefmt="github"))
 
@@ -168,38 +127,6 @@ def get_auth_and_device(ctx, device):
     if not device:
         device = ctx["device_id"]
     return device, sp_auth
-
-
-def convert_ms(duration_ms: int) -> str:
-    """
-    Converts milliseconds to a string representation of a timestamp (MM:SS).
-    """
-
-    minutes, seconds = divmod(duration_ms / 1000, 60)
-    rounded_seconds = int(round(seconds, 0))
-    seconds_str = str(rounded_seconds)
-    if len(seconds_str) < 2:
-        seconds_str = seconds_str.zfill(2)
-
-    return f"{int(minutes)}:{seconds_str}"
-
-
-def convert_timestamp(timestamp: str) -> int:
-    """
-    Converts a timestamp (MM:SS) to milliseconds.
-    """
-
-    timestamp_list = timestamp.split(":")
-    minutes = timestamp_list[0]
-    seconds = timestamp_list[1]
-    minutes_in_ms = int(minutes) * 60 * 1000
-    seconds_in_ms = int(seconds) * 1000
-    total_ms = minutes_in_ms + seconds_in_ms
-
-    if any((len(seconds) > 2, len(seconds) < 2, minutes_in_ms < 0, seconds_in_ms < 0)):
-        raise ValueError("Invalid format. Proper format is MM:SS.")
-
-    return total_ms
 
 
 def convert_datetime(datetime_str: str) -> int:
@@ -239,93 +166,15 @@ def check_url_format(url: str) -> str:
     return f"https://{match.group()}"
 
 
-def parse_artist_top_tracks(res: dict[str, Any]) -> tuple[list[str], IntRange]:
+def convert_ms(duration_ms: int) -> str:
     """
-    Parses the response returned by Spotify.artist_top_tracks and displays a table of information.
-    """
-
-    tracks = []
-    uris = []
-    for i, track in enumerate(res["tracks"]):
-        tracks.append(
-            {
-                "index": i,
-                "name": track["name"],
-                "artists": get_artist_names(track["album"]),
-                "popularity": track["popularity"],
-            }
-        )
-        uris.append(track["uri"])
-    display_table(tracks)
-    choices = IntRange(min=0, max=len(tracks) - 1)
-
-    return uris, choices
-
-
-def parse_artist_albums(res: dict[str, Any]) -> tuple[list[str], IntRange]:
-    """
-    Parses the response returned by Spotify.artist_albums and displays a table of information.
+    Converts milliseconds to a string representation of a timestamp (MM:SS).
     """
 
-    albums = []
-    uris = []
-    for i, item in enumerate(res["items"]):
-        album_type = item["album_type"]
-        artists = truncate(get_artist_names(item))
-        album_name = item["name"]
-        release_date = item["release_date"]
-        total_tracks = item["total_tracks"]
-        uris.append(item["uri"])
-        albums.append(
-            {
-                "index": i,
-                "artist(s)": artists,
-                "album name": album_name,
-                "album type": album_type,
-                "tracks": total_tracks,
-                "release date": release_date,
-            }
-        )
+    minutes, seconds = divmod(duration_ms / 1000, 60)
+    rounded_seconds = int(round(seconds, 0))
+    seconds_str = str(rounded_seconds)
+    if len(seconds_str) < 2:
+        seconds_str = seconds_str.zfill(2)
 
-    display_table(albums)
-    choices = IntRange(min=0, max=len(albums) - 1)
-
-    return uris, choices
-
-
-def check_devices(res: dict[str, list[dict[str, Any]]]) -> Optional[str]:
-
-    active_device = False
-    device_options: list[dict[str, Any]] = []
-    for i, device in enumerate(res["devices"]):
-        device_options.append(
-            {
-                "index": i,
-                "name": device["name"],
-                "type": device["type"],
-                "id": device["id"],
-            }
-        )
-
-        if device["is_active"]:
-            active_device = True
-
-    if not device_options:
-        raise NoDevicesFound(
-            "No devices were found. Verify the Spotify client is open on a device."
-        )
-
-    if not active_device:
-        if len(device_options) == 1:
-            device_to_activate = 0
-        else:
-            display_table(device_options)
-
-            device_to_activate = click.prompt(
-                "Enter the index of the device to activate",
-                type=IntRange(min=0, max=len(device_options) - 1),
-                show_choices=False,
-            )
-
-        return device_options[int(device_to_activate)]["id"]
-    return None
+    return f"{int(minutes)}:{seconds_str}"

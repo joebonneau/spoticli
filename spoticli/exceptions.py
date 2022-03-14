@@ -4,3 +4,7 @@ class NoDevicesFound(Exception):
 
 class InvalidURL(Exception):
     pass
+
+
+class InvalidTimestamp(Exception):
+    pass
