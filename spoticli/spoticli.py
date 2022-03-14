@@ -3,7 +3,6 @@ from typing import Any, Optional
 import click
 from click.exceptions import Abort
 from click.termui import style
-from spotipy.client import SpotifyException
 
 import spoticli.commands as commands
 from spoticli.lib.util import (
@@ -144,15 +143,7 @@ def increase_volume(ctx: dict[str, Any], amount: int, device: str):
     Increases volume by the increment specified (defaults to 10%).
     """
     device, sp_auth = get_auth_and_device(ctx, device)
-
-    current_playback = sp_auth.current_playback()
-    playback = get_current_playback(res=current_playback, display=False)
-    if volume := playback.get("volume"):
-        previous_volume = volume
-    new_volume = int(round(previous_volume + amount, 0))
-    new_volume = min(new_volume, 100)
-    sp_auth.volume(new_volume, device_id=device)
-    click.secho(f"New volume: {new_volume}")
+    commands.increase_volume(amount, device, sp_auth)
 
 
 @main.command("voldown")
@@ -164,15 +155,7 @@ def decrease_volume(ctx: dict[str, Any], amount: int, device: str):
     Decreases volume by the increment specified (defaults to 10%).
     """
     device, sp_auth = get_auth_and_device(ctx, device)
-
-    current_playback = sp_auth.current_playback()
-    playback = get_current_playback(res=current_playback, display=False)
-    if volume := playback.get("volume"):
-        previous_volume = volume
-        new_volume = int(round(previous_volume - amount, 0))
-        new_volume = max(new_volume, 0)
-        sp_auth.volume(new_volume, device_id=device)
-        click.secho(f"New volume: {new_volume}")
+    commands.decrease_volume(amount, device, sp_auth)
 
 
 @main.command("now")
@@ -208,13 +191,10 @@ def toggle_shuffle(ctx: dict[str, Any], on: bool, device: str):
     """
     device, sp_auth = get_auth_and_device(ctx, device)
 
-    if on:
-        sp_auth.shuffle(state=True, device_id=device)
-        click.echo(f"Shuffle toggled {style('on', fg='green')}.")
-    else:
-        sp_auth.shuffle(state=False, device_id=device)
-        click.echo(f"Shuffle toggled {style('off', fg='red')}.")
-
+    msg = "on" if on else "off"
+    color = "green" if on else "red"
+    sp_auth.shuffle(state=on, device_id=device)
+    click.echo(f"Shuffle toggled {style(msg, fg=color)}.")
 
 @main.command("rsa")
 @click.option("--device")
@@ -247,8 +227,7 @@ def recently_played(ctx: dict[str, Any], after: str, limit: int, device: str):
     Displays information about recently played tracks.
     """
     device, sp_auth = get_auth_and_device(ctx, device)
-    if after:
-        after = convert_datetime(after)
+    after = convert_datetime(after) if after else after
     commands.recently_played(
         sp_auth, after=after, limit=limit, device=device, user=ctx["user"]
     )
