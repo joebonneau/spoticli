@@ -196,6 +196,7 @@ def toggle_shuffle(ctx: dict[str, Any], on: bool, device: str):
     sp_auth.shuffle(state=on, device_id=device)
     click.echo(f"Shuffle toggled {style(msg, fg=color)}.")
 
+
 @main.command("rsa")
 @click.option("--device")
 @click.pass_obj

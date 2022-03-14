@@ -6,4 +6,4 @@ from .save_playlist_items import save_playlist_items  # noqa
 from .search import search  # noqa
 from .seek import seek  # noqa
 from .start_playback import start_playback  # noqa
-from .volume import increase_volume, decrease_volume # noqa
+from .volume import decrease_volume, increase_volume  # noqa
