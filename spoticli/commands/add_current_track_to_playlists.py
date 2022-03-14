@@ -4,8 +4,8 @@ import click
 from click import style
 from spotipy.client import Spotify
 
-from spoticli.types import CommaSeparatedIndices
-from spoticli.util import display_table, get_current_playback
+from spoticli.lib.types import CommaSeparatedIndices
+from spoticli.lib.util import display_table, get_current_playback
 
 
 def add_current_track_to_playlists(sp_auth: Spotify):

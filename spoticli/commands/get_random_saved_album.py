@@ -4,7 +4,7 @@ import click
 from click import style
 from spotipy.client import Spotify
 
-from spoticli.util import (
+from spoticli.lib.util import (
     Y_N_CHOICE_CASE_INSENSITIVE,
     add_album_to_queue,
     get_artist_names,

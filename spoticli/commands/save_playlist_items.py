@@ -3,8 +3,8 @@ from typing import Any, Tuple
 import click
 from spotipy.client import Spotify
 
-from spoticli.types import CommaSeparatedIndices
-from spoticli.util import (
+from spoticli.lib.types import CommaSeparatedIndices
+from spoticli.lib.util import (
     Y_N_CHOICE_CASE_INSENSITIVE,
     display_table,
     get_artist_names,

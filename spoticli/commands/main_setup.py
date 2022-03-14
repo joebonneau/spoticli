@@ -15,8 +15,8 @@ from spotipy.cache_handler import MemoryCacheHandler
 from spotipy.client import SpotifyException
 from spotipy.oauth2 import SpotifyOAuth, SpotifyOauthError
 
-from spoticli.exceptions import NoDevicesFound
-from spoticli.util import check_devices, display_table
+from spoticli.lib.exceptions import NoDevicesFound
+from spoticli.lib.util import display_table
 
 CACHED_TOKEN_INFO = os.environ.get("CACHED_TOKEN_INFO")
 

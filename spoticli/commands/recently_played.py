@@ -4,8 +4,8 @@ import click
 from click import Choice, IntRange
 from spotipy.client import Spotify
 
-from spoticli.types import CommaSeparatedIndexRange
-from spoticli.util import (
+from spoticli.lib.types import CommaSeparatedIndexRange
+from spoticli.lib.util import (
     add_album_to_queue,
     display_table,
     get_index,

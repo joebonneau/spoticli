@@ -5,8 +5,8 @@ from pathlib import Path
 import click
 from appdirs import user_config_dir
 
-from spoticli.types import SpotifyCredential
-from spoticli.util import Y_N_CHOICE_CASE_INSENSITIVE
+from spoticli.lib.types import SpotifyCredential
+from spoticli.lib.util import Y_N_CHOICE_CASE_INSENSITIVE
 
 
 def generate_config():

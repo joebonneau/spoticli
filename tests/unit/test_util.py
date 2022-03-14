@@ -3,7 +3,7 @@ from pathlib import Path
 
 import pytest
 
-from spoticli.util import (
+from spoticli.lib.util import (
     check_url_format,
     convert_datetime,
     convert_ms,

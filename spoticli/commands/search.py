@@ -5,7 +5,7 @@ from click import Choice, IntRange
 from spotipy.client import Spotify, SpotifyException
 from tqdm import tqdm
 
-from spoticli.util import (
+from spoticli.lib.util import (
     Y_N_CHOICE_CASE_INSENSITIVE,
     add_album_to_queue,
     convert_ms,

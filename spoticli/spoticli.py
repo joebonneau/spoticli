@@ -6,7 +6,7 @@ from click.termui import style
 from spotipy.client import SpotifyException
 
 import spoticli.commands as commands
-from spoticli.util import (
+from spoticli.lib.util import (
     add_album_to_queue,
     check_url_format,
     convert_datetime,
@@ -122,6 +122,7 @@ def start_playback(ctx: dict[str, Any], device: Optional[str], url: Optional[str
     except SpotifyException as e:
         click.secho(str(e), fg="red")
 
+
 @main.command("cp")
 @click.option("-pub/-pri", default=True, help="public or private")
 @click.option(
@@ -154,6 +155,7 @@ def create_playlist(ctx: dict[str, Any], pub: bool, c: bool, d: str, name: str):
     except SpotifyException as e:
         click.secho(str(e), fg="red")
 
+
 @main.command("seek")
 @click.option("--device")
 @click.argument("timestamp", required=True)
@@ -166,6 +168,7 @@ def seek(ctx: dict[str, Any], timestamp: str, device: str):
     """
     device, sp_auth = get_auth_and_device(ctx, device)
     commands.seek(sp_auth, timestamp, device)
+
 
 @main.command("volup")
 @click.option("--device")
@@ -189,6 +192,7 @@ def increase_volume(ctx: dict[str, Any], amount: int, device: str):
         click.secho(f"New volume: {new_volume}")
     except SpotifyException as e:
         click.secho(str(e), fg="red")
+
 
 @main.command("voldown")
 @click.option("--device")
@@ -239,6 +243,7 @@ def now_playing(ctx: dict[str, Any], verbose: bool, url: str):
     except SpotifyException as e:
         click.secho(str(e), fg="red")
 
+
 @main.command("shuffle")
 @click.option("--device")
 @click.option("-on/-off", required=True, is_flag=True)
@@ -259,6 +264,7 @@ def toggle_shuffle(ctx: dict[str, Any], on: bool, device: str):
     except SpotifyException as e:
         click.secho(str(e), fg="red")
 
+
 @main.command("rsa")
 @click.option("--device")
 @click.pass_obj
@@ -269,6 +275,7 @@ def get_random_saved_album(ctx: dict[str, Any], device: str):
     device, sp_auth = get_auth_and_device(ctx, device)
     commands.get_random_saved_album(sp_auth, device=device)
 
+
 @main.command("actp")
 @click.pass_obj
 def add_current_track_to_playlists(ctx: dict[str, Any]):
@@ -277,6 +284,7 @@ def add_current_track_to_playlists(ctx: dict[str, Any]):
     """
     _, sp_auth = get_auth_and_device(ctx, device=None)
     commands.add_current_track_to_playlists(sp_auth)
+
 
 @main.command("recent")
 @click.option("-a", "--after", default=None, help="YYYYMMDD MM:SS")
@@ -311,6 +319,7 @@ def search(ctx: dict[str, Any], query: str, type_: str, device: str):
     """
     device, sp_auth = get_auth_and_device(ctx, device)
     commands.search(sp_auth=sp_auth, query=query, type_=type_, device=device)
+
 
 @main.command("atq")
 @click.option("--device")
