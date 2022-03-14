@@ -79,6 +79,7 @@ def pause_playback(ctx: dict[str, Any], device: Optional[str]):
         sp_auth.pause_playback(device_id=device)
         click.echo("Playback paused.")
 
+
 @main.command("play")
 @click.option("--device")
 @click.argument("url", required=False)
@@ -89,6 +90,7 @@ def start_playback(ctx: dict[str, Any], device: Optional[str], url: Optional[str
     """
     device, sp_auth = get_auth_and_device(ctx, device)
     commands.start_playback(sp_auth, device, url)
+
 
 @main.command("cp")
 @click.option("-pub/-pri", default=True, help="public or private")
@@ -289,7 +291,6 @@ def add_to_queue(ctx: dict[str, Any], url: str, device: str):
     else:
         sp_auth.add_to_queue(valid_url, device)
         click.secho("Track successfully added to queue.", fg="green")
-    
 
 
 @main.command("spa")

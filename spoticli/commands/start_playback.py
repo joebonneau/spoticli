@@ -1,11 +1,17 @@
 from typing import Optional
-from spoticli.lib.util import check_url_format, get_current_playback, wait_display_playback
-from spotipy import Spotify
+
 import click
+from spotipy import Spotify
+
+from spoticli.lib.util import (
+    check_url_format,
+    get_current_playback,
+    wait_display_playback,
+)
 
 
 def start_playback(sp_auth: Spotify, device: str, url: Optional[str]):
-    
+
     if url:
         try:
             valid_url = check_url_format(url)
