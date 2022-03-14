@@ -4,7 +4,7 @@ from configparser import ConfigParser
 from configparser import Error as ConfigError
 from pathlib import Path
 from time import sleep
-from typing import Any, Union
+from typing import Any
 
 import click
 from appdirs import user_config_dir

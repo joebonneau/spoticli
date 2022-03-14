@@ -5,3 +5,4 @@ from .recently_played import recently_played  # noqa
 from .save_playlist_items import save_playlist_items  # noqa
 from .search import search  # noqa
 from .seek import seek  # noqa
+from .start_playback import start_playback # noqa
