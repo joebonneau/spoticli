@@ -3,14 +3,20 @@ from pathlib import Path
 
 import pytest
 
-from spoticli.util import (
+from spoticli.commands.search import (
+    parse_album_search,
+    parse_artist_search,
+    parse_playlist_search,
+    parse_track_search,
+)
+from spoticli.commands.seek import convert_timestamp
+from spoticli.lib.exceptions import InvalidURL
+from spoticli.lib.util import (
     check_url_format,
     convert_datetime,
     convert_ms,
-    convert_timestamp,
     get_artist_names,
     get_current_playback,
-    search_parse,
     truncate,
 )
 
@@ -90,7 +96,7 @@ def test_search_parse_album():
     f = open(path)
     res = json.load(f)
 
-    actual_results, actual_uris = search_parse(res, "albums")
+    actual_results, actual_uris = parse_album_search(res)
 
     results = [
         {
@@ -178,7 +184,7 @@ def test_search_parse_artist():
     f = open(path)
     res = json.load(f)
 
-    actual_results, actual_uris = search_parse(res, "artists")
+    actual_results, actual_uris = parse_artist_search(res)
 
     results = [
         {"index": 0, "artist": "A Tribe Called Quest"},
@@ -200,7 +206,7 @@ def test_search_parse_playlist():
     f = open(path)
     res = json.load(f)
 
-    actual_results, actual_uris = search_parse(res, "playlists")
+    actual_results, actual_uris = parse_playlist_search(res)
 
     results = [
         {
@@ -298,7 +304,7 @@ def test_search_parse_track():
     f = open(path)
     res = json.load(f)
 
-    actual_results, actual_uris = search_parse(res, "tracks")
+    actual_results, actual_uris = parse_track_search(res)
 
     results = [
         {
@@ -420,8 +426,8 @@ def test_check_url_format_invalid():
     url_1 = "https://open.spotify.com/track/464Br"
     url_2 = "https://close.spotify.com/album/4XF4TSU1Z8FvA52wvZqrQ5?si=0l5T5q6BQfKacmPF9hjpXg&dl_branch=1"
 
-    with pytest.raises(ValueError):
+    with pytest.raises(InvalidURL):
         check_url_format(url_1)
 
-    with pytest.raises(ValueError):
+    with pytest.raises(InvalidURL):
         check_url_format(url_2)
